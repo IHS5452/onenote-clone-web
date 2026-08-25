@@ -270,7 +270,7 @@
     .modal-body {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       font-size: 13px;
     }
     .modal-row {
@@ -292,6 +292,24 @@
     }
     .modal-value a:hover {
       text-decoration: underline;
+    }
+
+    /* Modal Inputs & Actions */
+    .modal-input {
+      width: 100%;
+      padding: 8px;
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      color: var(--text-bright);
+      border-radius: 4px;
+      outline: none;
+      font-size: 13px;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
     }
   </style>
 </head>
@@ -416,7 +434,102 @@
     </div>
   </div>
 
+  <!-- Import MD Modal -->
+  <div class="modal-overlay" id="import-md-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Import Markdown</span>
+        <button type="button" class="modal-close" id="import-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="import-active-subject-option" style="display:none; flex-direction: column; gap: 10px;">
+          <p>Import into active subject (<strong id="import-active-subject-name" style="color:var(--text-bright);"></strong>)?</p>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn" id="btn-import-use-active">Use Current Subject</button>
+            <button type="button" class="btn btn-secondary" id="btn-import-switch-new">Create New Subject</button>
+          </div>
+        </div>
+        <div id="import-new-subject-container" style="display:none; flex-direction: column; gap: 8px;">
+          <label class="modal-label" for="input-new-subject-name">Subject Name:</label>
+          <input type="text" class="modal-input" id="input-new-subject-name" placeholder="e.g. Computer Science" />
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btn-import-cancel">Cancel</button>
+            <button type="button" class="btn" id="btn-import-confirm-new">Continue & Import</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
+
+  <!-- Import Modal Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnImportMd = document.getElementById('btn-import-md');
+      const inputImportMd = document.getElementById('input-import-md');
+      const importModal = document.getElementById('import-md-modal');
+      const importClose = document.getElementById('import-modal-close');
+      const activeOptionDiv = document.getElementById('import-active-subject-option');
+      const activeSubjectNameSpan = document.getElementById('import-active-subject-name');
+      const btnUseActive = document.getElementById('btn-import-use-active');
+      const btnSwitchNew = document.getElementById('btn-import-switch-new');
+      const newSubjectContainer = document.getElementById('import-new-subject-container');
+      const inputNewSubjectName = document.getElementById('input-new-subject-name');
+      const btnConfirmNew = document.getElementById('btn-import-confirm-new');
+      const btnCancel = document.getElementById('btn-import-cancel');
+
+      function closeModal() {
+        importModal.classList.remove('active');
+        inputNewSubjectName.value = '';
+      }
+
+      function triggerFilePicker(subjectName) {
+        inputImportMd.dataset.targetSubject = subjectName;
+        closeModal();
+        inputImportMd.click();
+      }
+
+      if (btnImportMd && importModal) {
+        btnImportMd.addEventListener('click', () => {
+          const activeSubjectItem = document.querySelector('#list-subjects li.active');
+          
+          if (activeSubjectItem) {
+            const subjectName = activeSubjectItem.childNodes[0]?.textContent?.trim() || activeSubjectItem.textContent.trim();
+            activeSubjectNameSpan.textContent = subjectName;
+            activeOptionDiv.style.display = 'flex';
+            newSubjectContainer.style.display = 'none';
+          } else {
+            activeOptionDiv.style.display = 'none';
+            newSubjectContainer.style.display = 'flex';
+          }
+
+          importModal.classList.add('active');
+        });
+
+        importClose.addEventListener('click', closeModal);
+        btnCancel.addEventListener('click', closeModal);
+
+        btnUseActive.addEventListener('click', () => {
+          const subjectName = activeSubjectNameSpan.textContent;
+          triggerFilePicker(subjectName);
+        });
+
+        btnSwitchNew.addEventListener('click', () => {
+          activeOptionDiv.style.display = 'none';
+          newSubjectContainer.style.display = 'flex';
+          inputNewSubjectName.focus();
+        });
+
+        btnConfirmNew.addEventListener('click', () => {
+          const newName = inputNewSubjectName.value.trim();
+          if (newName) {
+            triggerFilePicker(newName);
+          }
+        });
+      }
+    });
+  </script>
   
 </body>
 </html>
