@@ -1,9 +1,8 @@
-
-
 let rootHandle = null;
 let selectedSubjectHandle = null;
 let selectedWeekHandle = null;
 let recentsMap = new Map();
+let autoSaveTimer = null;
 
 const btnOpenFolder = document.getElementById('btn-open-folder');
 const btnAddSubject = document.getElementById('btn-add-subject');
@@ -74,10 +73,27 @@ async function verifyPermission(fileHandle, readWrite = true) {
   return false;
 }
 
+// --- Save Helper Function ---
+async function saveCurrentWeekToFile() {
+  if (!selectedWeekHandle) return;
+  try {
+    const title = pageTitle.value || "Untitled Week";
+    const htmlBody = pageBody.innerHTML;
+    const docxHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><h1>${title}</h1>${htmlBody}</body></html>`;
+    const convertedBlob = htmlDocx.asBlob(docxHtml);
+    const writable = await selectedWeekHandle.createWritable();
+    await writable.write(convertedBlob);
+    await writable.close();
+  } catch (err) {
+    console.error("Autosave/Save error:", err);
+  }
+}
+
 // --- Root Directory Loading ---
 btnOpenFolder.addEventListener('click', async (e) => {
   e.preventDefault();
   try {
+    await saveCurrentWeekToFile();
     rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
     await saveHandleToDB(rootHandle.name, rootHandle);
     await loadRecentsFromDB();
@@ -94,6 +110,7 @@ selectRecents.addEventListener('change', async (e) => {
   if (!handle) return;
 
   try {
+    await saveCurrentWeekToFile();
     const hasPermission = await verifyPermission(handle, true);
     if (!hasPermission) {
       alert("Permission to access this directory was denied.");
@@ -152,19 +169,21 @@ function addSubjectUIElement(entryHandle) {
   };
   li.appendChild(delBtn);
 
-  li.onclick = (e) => {
+  li.onclick = async (e) => {
     e.preventDefault();
-    selectSubject(entryHandle, li);
+    await selectSubject(entryHandle, li);
   };
   listSubjects.appendChild(li);
   return li;
 }
 
 async function selectSubject(handle, element) {
+  await saveCurrentWeekToFile(); // Save active document before switching subjects
   setActive(listSubjects, element);
   selectedSubjectHandle = handle;
   selectedWeekHandle = null;
   listWeeks.innerHTML = '';
+  resetEditor();
 
   for await (const entry of handle.values()) {
     if (entry.kind === 'file' && entry.name.endsWith('.docx')) {
@@ -203,15 +222,16 @@ function addWeekUIElement(fileHandle) {
   };
   li.appendChild(delBtn);
 
-  li.onclick = (e) => {
+  li.onclick = async (e) => {
     e.preventDefault();
-    loadWeek(fileHandle, li);
+    await loadWeek(fileHandle, li);
   };
   listWeeks.appendChild(li);
   return li;
 }
 
 async function loadWeek(fileHandle, element) {
+  await saveCurrentWeekToFile(); // Save current file before loading new one
   setActive(listWeeks, element);
   selectedWeekHandle = fileHandle;
 
@@ -231,6 +251,20 @@ async function loadWeek(fileHandle, element) {
   toolbar.style.display = 'flex';
 }
 
+// --- Auto-Save Triggers ---
+pageBody.addEventListener('blur', saveCurrentWeekToFile);
+pageTitle.addEventListener('blur', saveCurrentWeekToFile);
+
+pageBody.addEventListener('input', () => {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveCurrentWeekToFile, 1000);
+});
+
+pageTitle.addEventListener('input', () => {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveCurrentWeekToFile, 1000);
+});
+
 // --- Dynamic Creation Handlers ---
 btnAddSubject.addEventListener('click', async (e) => {
   e.preventDefault();
@@ -243,11 +277,13 @@ btnAddSubject.addEventListener('click', async (e) => {
     const subjectName = prompt("Enter Subject Name:");
     if (!subjectName || !subjectName.trim()) return;
 
+    await saveCurrentWeekToFile();
+
     const cleanName = subjectName.trim();
     const newDirHandle = await rootHandle.getDirectoryHandle(cleanName, { create: true });
 
     const newLi = addSubjectUIElement(newDirHandle);
-    selectSubject(newDirHandle, newLi);
+    await selectSubject(newDirHandle, newLi);
   } catch (err) {
     console.error("Subject creation error:", err);
     alert(`Could not create subject folder: ${err.message}`);
@@ -265,6 +301,8 @@ btnAddWeek.addEventListener('click', async (e) => {
     const weekName = prompt("Enter Week Name (e.g. Week 1):");
     if (!weekName || !weekName.trim()) return;
 
+    await saveCurrentWeekToFile();
+
     const fileName = `${weekName.trim()}.docx`;
     const initialContent = `<!DOCTYPE html><html><body><h1>${weekName.trim()}</h1><p>Notes here...</p></body></html>`;
     const blob = htmlDocx.asBlob(initialContent);
@@ -275,7 +313,7 @@ btnAddWeek.addEventListener('click', async (e) => {
     await writable.close();
 
     const newLi = addWeekUIElement(newFileHandle);
-    loadWeek(newFileHandle, newLi);
+    await loadWeek(newFileHandle, newLi);
   } catch (err) {
     console.error("Week creation error:", err);
     alert(`Failed to create Week file: ${err.message}`);
@@ -305,7 +343,7 @@ function insertImage() {
   if (url) document.execCommand('insertImage', false, url);
 }
 
-// --- Export Handlers ---
+// --- Export & Manual Save Handlers ---
 btnSave.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!selectedWeekHandle) return;
@@ -316,11 +354,7 @@ btnSave.addEventListener('click', async (e) => {
 
   try {
     if (format === 'docx') {
-      const docxHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><h1>${title}</h1>${htmlBody}</body></html>`;
-      const convertedBlob = htmlDocx.asBlob(docxHtml);
-      const writable = await selectedWeekHandle.createWritable();
-      await writable.write(convertedBlob);
-      await writable.close();
+      await saveCurrentWeekToFile();
       alert('Page saved back to DOCX file successfully!');
     } else if (format === 'pdf') {
       const opt = { margin: 0.5, filename: `${title}.pdf`, html2canvas: { scale: 2 } };
