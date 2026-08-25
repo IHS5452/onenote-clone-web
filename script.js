@@ -1,3 +1,5 @@
+const docx = window.docx;
+
 let rootHandle = null;
 let selectedSubjectHandle = null;
 let selectedWeekHandle = null;
@@ -73,19 +75,106 @@ async function verifyPermission(fileHandle, readWrite = true) {
   return false;
 }
 
-// --- Save Helper Function ---
+// --- DOM Node Formatting Helper ---
+function isNodeFormatted(node, targetTag) {
+  let current = node.parentElement;
+  while (current && current.id !== 'page-body') {
+    if (current.tagName.toUpperCase() === targetTag) return true;
+    current = current.parentElement;
+  }
+  return false;
+}
+
+// --- Recursive Parser for Text & Styling Runs ---
+function parseElementToDocxRuns(node) {
+  const runs = [];
+  const docxLib = window.docx || docx;
+
+  node.childNodes.forEach(child => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      if (child.textContent) {
+        runs.push(new docxLib.TextRun({
+          text: child.textContent,
+          bold: isNodeFormatted(child, 'B') || isNodeFormatted(child, 'STRONG'),
+          italics: isNodeFormatted(child, 'I') || isNodeFormatted(child, 'EM'),
+          underline: isNodeFormatted(child, 'U') ? {} : undefined,
+        }));
+      }
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      const tag = child.tagName.toUpperCase();
+      if (tag === 'BR') {
+        runs.push(new docxLib.TextRun({ break: 1 }));
+      } else {
+        runs.push(...parseElementToDocxRuns(child));
+      }
+    }
+  });
+
+  return runs;
+}
+
+// --- OpenXML Binary Saver ---
 async function saveCurrentWeekToFile() {
   if (!selectedWeekHandle) return;
   try {
-    const title = pageTitle.value || "Untitled Week";
-    const htmlBody = pageBody.innerHTML;
-    const docxHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><h1>${title}</h1>${htmlBody}</body></html>`;
-    const convertedBlob = htmlDocx.asBlob(docxHtml);
+    const docxLib = window.docx || docx;
+    const paragraphs = [];
+
+    // Process only the canvas content (does NOT inject the week title as an H1)
+    const blockElements = Array.from(pageBody.childNodes);
+    
+    if (blockElements.length === 0) {
+      paragraphs.push(new docxLib.Paragraph({ text: "" }));
+    } else {
+      blockElements.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          if (node.textContent.trim()) {
+            paragraphs.push(new docxLib.Paragraph({
+              children: [new docxLib.TextRun(node.textContent)],
+            }));
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = node.tagName.toUpperCase();
+          if (tag === 'UL' || tag === 'OL') {
+            node.querySelectorAll('li').forEach(li => {
+              paragraphs.push(new docxLib.Paragraph({
+                children: parseElementToDocxRuns(li),
+                bullet: { level: 0 }
+              }));
+            });
+          } else if (tag === 'H1') {
+            paragraphs.push(new docxLib.Paragraph({
+              children: parseElementToDocxRuns(node),
+              heading: docxLib.HeadingLevel.HEADING_1,
+            }));
+          } else if (tag === 'H2') {
+            paragraphs.push(new docxLib.Paragraph({
+              children: parseElementToDocxRuns(node),
+              heading: docxLib.HeadingLevel.HEADING_2,
+            }));
+          } else {
+            const runs = parseElementToDocxRuns(node);
+            paragraphs.push(new docxLib.Paragraph({
+              children: runs.length > 0 ? runs : [new docxLib.TextRun(node.innerText || "")]
+            }));
+          }
+        }
+      });
+    }
+
+    const doc = new docxLib.Document({
+      sections: [{
+        properties: {},
+        children: paragraphs,
+      }],
+    });
+
+    const blob = await docxLib.Packer.toBlob(doc);
     const writable = await selectedWeekHandle.createWritable();
-    await writable.write(convertedBlob);
+    await writable.write(blob);
     await writable.close();
   } catch (err) {
-    console.error("Autosave/Save error:", err);
+    console.error("DOCX Binary Save Error:", err);
   }
 }
 
@@ -178,7 +267,7 @@ function addSubjectUIElement(entryHandle) {
 }
 
 async function selectSubject(handle, element) {
-  await saveCurrentWeekToFile(); // Save active document before switching subjects
+  await saveCurrentWeekToFile();
   setActive(listSubjects, element);
   selectedSubjectHandle = handle;
   selectedWeekHandle = null;
@@ -231,27 +320,34 @@ function addWeekUIElement(fileHandle) {
 }
 
 async function loadWeek(fileHandle, element) {
-  await saveCurrentWeekToFile(); // Save current file before loading new one
+  await saveCurrentWeekToFile();
   setActive(listWeeks, element);
   selectedWeekHandle = fileHandle;
 
-  const file = await fileHandle.getFile();
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
-  
-  pageTitle.value = fileHandle.name.replace('.docx', '');
-  pageDatetime.textContent = new Date(file.lastModified).toLocaleString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
-  
-  pageBody.innerHTML = result.value || '<p>Start typing here...</p>';
+  try {
+    const file = await fileHandle.getFile();
+    const arrayBuffer = await file.arrayBuffer();
+    
+    const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+    
+    pageTitle.value = fileHandle.name.replace('.docx', '');
+    pageDatetime.textContent = new Date(file.lastModified).toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    
+    const contentHtml = result.value ? result.value.trim() : '';
+    pageBody.innerHTML = contentHtml.length > 0 ? contentHtml : '<p><br></p>';
 
-  emptyState.style.display = 'none';
-  editorContent.style.display = 'block';
-  toolbar.style.display = 'flex';
+    emptyState.style.display = 'none';
+    editorContent.style.display = 'block';
+    toolbar.style.display = 'flex';
+  } catch (err) {
+    console.error("Mammoth DOCX parsing failed:", err);
+    alert("Could not read file. Ensure it is a valid .docx document.");
+  }
 }
 
-// --- Auto-Save Triggers ---
+// --- Auto-Save Event Controls ---
 pageBody.addEventListener('blur', saveCurrentWeekToFile);
 pageTitle.addEventListener('blur', saveCurrentWeekToFile);
 
@@ -265,14 +361,14 @@ pageTitle.addEventListener('input', () => {
   autoSaveTimer = setTimeout(saveCurrentWeekToFile, 1000);
 });
 
-// --- Dynamic Creation Handlers ---
+// --- Dynamic File Handlers ---
 btnAddSubject.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!rootHandle) return alert("Please open or select a root folder first.");
 
   try {
     const hasPermission = await verifyPermission(rootHandle, true);
-    if (!hasPermission) return alert("Write permission was denied for the root directory.");
+    if (!hasPermission) return alert("Write permission was denied.");
 
     const subjectName = prompt("Enter Subject Name:");
     if (!subjectName || !subjectName.trim()) return;
@@ -304,8 +400,18 @@ btnAddWeek.addEventListener('click', async (e) => {
     await saveCurrentWeekToFile();
 
     const fileName = `${weekName.trim()}.docx`;
-    const initialContent = `<!DOCTYPE html><html><body><h1>${weekName.trim()}</h1><p>Notes here...</p></body></html>`;
-    const blob = htmlDocx.asBlob(initialContent);
+    const docxLib = window.docx || docx;
+    
+    // Create baseline clean file
+    const doc = new docxLib.Document({
+      sections: [{
+        children: [
+          new docxLib.Paragraph({ text: "" })
+        ],
+      }],
+    });
+    
+    const blob = await docxLib.Packer.toBlob(doc);
 
     const newFileHandle = await selectedSubjectHandle.getFileHandle(fileName, { create: true });
     const writable = await newFileHandle.createWritable();
@@ -343,7 +449,7 @@ function insertImage() {
   if (url) document.execCommand('insertImage', false, url);
 }
 
-// --- Export & Manual Save Handlers ---
+// --- Export & Save Action ---
 btnSave.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!selectedWeekHandle) return;
@@ -355,7 +461,7 @@ btnSave.addEventListener('click', async (e) => {
   try {
     if (format === 'docx') {
       await saveCurrentWeekToFile();
-      alert('Page saved back to DOCX file successfully!');
+      alert('Page saved to binary .docx file successfully!');
     } else if (format === 'pdf') {
       const opt = { margin: 0.5, filename: `${title}.pdf`, html2canvas: { scale: 2 } };
       const pdfWrapper = document.createElement('div');
