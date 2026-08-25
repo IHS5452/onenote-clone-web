@@ -27,38 +27,108 @@ function alphaNumericCompare(a, b) {
 }
 
 // --- Handle Paste for Images ---
-function handlePaste(e) {
+// --- Enhanced Handle Paste for MD, HTML, DOCX, and Images ---
+async function handlePaste(e) {
   const clipboardData = e.clipboardData || window.clipboardData;
   if (!clipboardData) return;
 
+  // 1. Handle File Pastes (DOCX files or standard images)
   const items = clipboardData.items;
   for (let i = 0; i < items.length; i++) {
-    if (items[i].type.indexOf('image') !== -1) {
+    const item = items[i];
+    
+    // Handle Image Files
+    if (item.type.indexOf('image') !== -1) {
       e.preventDefault();
-      const file = items[i].getAsFile();
+      const file = item.getAsFile();
       const reader = new FileReader();
 
       reader.onload = function (event) {
-        const img = document.createElement('img');
-        img.src = event.target.result;
-        img.style.maxWidth = '100%';
-
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          range.deleteContents();
-          range.insertNode(img);
-          range.collapse(false);
-        } else {
-          pageBody.appendChild(img);
-        }
-        
+        insertHtmlAtCaret(`<img src="${event.target.result}" style="max-width:100%;" />`);
         saveCurrentWeekToFile();
       };
-
       reader.readAsDataURL(file);
-      break;
+      return;
     }
+
+    // Handle DOCX File Pastes via Mammoth
+    if (item.kind === 'file' && (item.type.includes('wordprocessingml') || item.type.includes('docx'))) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      const arrayBuffer = await file.arrayBuffer();
+      
+      const options = {
+        convertImage: mammoth.images.imgElement(function(image) {
+          return image.read("base64").then(function(imageBuffer) {
+            return { src: "data:" + image.contentType + ";base64," + imageBuffer };
+          });
+        })
+      };
+      
+      const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, options);
+      if (result.value) {
+        insertHtmlAtCaret(result.value);
+        saveCurrentWeekToFile();
+      }
+      return;
+    }
+  }
+
+  // 2. Handle Text Formats (HTML & Markdown)
+  const htmlText = clipboardData.getData('text/html');
+  const plainText = clipboardData.getData('text/plain');
+
+  // Case A: Standard Rich HTML Pastes
+  if (htmlText && htmlText.trim()) {
+    e.preventDefault();
+    // Clean and insert sanitized HTML
+    insertHtmlAtCaret(htmlText);
+    saveCurrentWeekToFile();
+    return;
+  }
+
+  // Case B: Markdown Pastes (Detected via basic syntax matching)
+  if (plainText && isMarkdownText(plainText)) {
+    e.preventDefault();
+    if (window.marked) {
+      const parsedHtml = window.marked.parse(plainText);
+      insertHtmlAtCaret(parsedHtml);
+      saveCurrentWeekToFile();
+      return;
+    }
+  }
+}
+
+// --- Helper: Check if raw text looks like Markdown ---
+function isMarkdownText(text) {
+  const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
+  return mdRegex.test(text);
+}
+
+// --- Helper: Insert HTML into Document Selection Caret ---
+function insertHtmlAtCaret(html) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+  
+  const frag = document.createDocumentFragment();
+  let node, lastNode;
+  while ((node = tempDiv.firstChild)) {
+    lastNode = frag.appendChild(node);
+  }
+  
+  range.insertNode(frag);
+
+  if (lastNode) {
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 }
 
