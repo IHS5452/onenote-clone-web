@@ -306,12 +306,17 @@
       <span>OneNote Web Clone by Ian Schrauth</span>
     </div>
     <div class="top-actions">
-      <button type="button" class="btn btn-secondary" id="btn-about">About</button>
-      <select class="btn btn-secondary" id="select-recents">
-        <option value="" disabled selected>Recent Subjects</option>
-      </select>
-      <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
-    </div>
+    <div class="top-actions">
+  <button type="button" class="btn btn-secondary" id="btn-about">About</button>
+  <select class="btn btn-secondary" id="select-recents">
+    <option value="" disabled selected>Recent Subjects</option>
+  </select>
+  <!-- New Import MD Button -->
+  <button type="button" class="btn btn-secondary" id="btn-import-md">Import MD</button>
+  <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
+  <!-- Hidden File Input for Bulk MD Uploads -->
+  <input type="file" id="input-import-md" accept=".md" multiple style="display: none;" />
+</div>
   </div>
 
   <div class="app-container">
