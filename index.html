@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OneNote Clone by Ian Schrauth</title>
+  <title>OneNote Web Clone by Ian Schrauth</title>
 
-  <!-- External Libraries for Processing File Formats -->
+  <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -23,264 +23,70 @@
       --border-color: #333333;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      user-select: none;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-editor); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    .titlebar { height: 44px; background-color: var(--bg-titlebar); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+    .titlebar .brand { font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .titlebar .brand-icon { width: 18px; height: 18px; background-color: var(--accent-color); border-radius: 4px; display: inline-block; }
+    .top-actions { display: flex; gap: 8px; align-items: center; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-editor);
-      color: var(--text-main);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+    .btn { background-color: var(--accent-color); color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .btn:hover { background-color: var(--accent-hover); }
+    .btn-secondary { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-secondary:hover { background-color: rgba(255, 255, 255, 0.1); }
+    select.btn-secondary { outline: none; padding-right: 8px; }
 
-    .titlebar {
-      height: 44px;
-      background-color: var(--bg-titlebar);
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 16px;
-    }
+    .app-container { display: flex; flex: 1; height: calc(100vh - 44px); }
+    .pane { border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+    .pane-header { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+    .add-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; }
+    .add-btn:hover { color: #fff; }
 
-    .titlebar .brand {
-      font-weight: 600;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-    }
-
-    .titlebar .brand-icon {
-      width: 18px;
-      height: 18px;
-      background-color: var(--accent-color);
-      border-radius: 4px;
-      display: inline-block;
-    }
-
-    .top-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .btn {
-      background-color: var(--accent-color);
-      color: #fff;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .btn:hover {
-      background-color: var(--accent-hover);
-    }
-
-    .btn-secondary {
-      background-color: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-    }
-
-    .btn-secondary:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-
-    select.btn-secondary {
-      outline: none;
-      padding-right: 8px;
-    }
-
-    .app-container {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 44px);
-    }
-
-    .pane {
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .pane-header {
-      padding: 10px 14px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border-color);
+    .pane-list { list-style: none; overflow-y: auto; flex: 1; }
+    .pane-list li { 
+      padding: 10px 14px; 
+      font-size: 13px; 
+      cursor: pointer; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+    .pane-list li:hover { background-color: rgba(255, 255, 255, 0.05); }
+    .pane-list li.active { background-color: var(--accent-color); color: #ffffff; }
 
-    .add-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
-    }
-
-    .add-btn:hover {
-      color: #fff;
-    }
-
-    .pane-list {
-      list-style: none;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .pane-list li {
-      padding: 10px 14px;
-      font-size: 13px;
-      cursor: pointer;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .pane-list li:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-    }
-
-    .pane-list li.active {
-      background-color: var(--accent-color);
-      color: #ffffff;
-    }
-
-    .pane-sidebar {
-      width: 220px;
-      background-color: var(--bg-sidebar);
-    }
-
-    .pane-pages {
-      width: 220px;
-      background-color: var(--bg-pages);
-    }
-
-    .editor-pane {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background-color: var(--bg-editor);
-    }
-
-    .editor-toolbar {
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      background-color: var(--bg-titlebar);
-      flex-wrap: wrap;
-    }
-
-    .toolbar-btn {
-      background: none;
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 4px 8px;
-      border-radius: 3px;
-      cursor: pointer;
+    .delete-icon {
+      display: none;
       font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      color: #ff6b6b;
+      opacity: 0.7;
+      margin-left: 8px;
     }
+    .pane-list li:hover .delete-icon { display: inline-block; }
+    .delete-icon:hover { opacity: 1; color: #ff4d4d; }
 
-    .toolbar-btn:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
+    .pane-sidebar { width: 220px; background-color: var(--bg-sidebar); }
+    .pane-pages { width: 220px; background-color: var(--bg-pages); }
 
-    .toolbar-select, .toolbar-input-color {
-      background: var(--bg-sidebar);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 3px 6px;
-      border-radius: 3px;
-      font-size: 12px;
-      outline: none;
-    }
+    .editor-pane { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-editor); }
+    .editor-toolbar { padding: 8px 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; background-color: var(--bg-titlebar); flex-wrap: wrap; }
+    .toolbar-btn { background: none; border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+    .toolbar-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
+    .toolbar-select, .toolbar-input-color { background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 3px; font-size: 12px; outline: none; }
+    .toolbar-input-color { padding: 0; width: 24px; height: 24px; cursor: pointer; }
 
-    .toolbar-input-color {
-      padding: 0;
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-    }
+    .editor-container { flex: 1; padding: 40px; overflow-y: auto; }
+    .onenote-header { border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px; }
+    .page-title { font-size: 32px; font-weight: 700; color: #ffffff; border: none; outline: none; background: transparent; width: 100%; }
+    .page-datetime { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-    .editor-container {
-      flex: 1;
-      padding: 40px;
-      overflow-y: auto;
-    }
-
-    .onenote-header {
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 12px;
-      margin-bottom: 24px;
-    }
-
-    .page-title {
-      font-size: 32px;
-      font-weight: 700;
-      color: #ffffff;
-      border: none;
-      outline: none;
-      background: transparent;
-      width: 100%;
-    }
-
-    .page-datetime {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .canvas {
-      min-height: 400px;
-      outline: none;
-      color: #d4d4d4;
-      font-size: 15px;
-      line-height: 1.6;
-      user-select: text;
-    }
-
-    .canvas p {
-      margin-bottom: 1em;
-    }
-
-    .canvas img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 4px;
-    }
-
-    .empty-state {
-      display: flex;
-      height: 100%;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
+    .canvas { min-height: 400px; outline: none; color: #d4d4d4; font-size: 15px; line-height: 1.6; user-select: text; }
+    .canvas p { margin-bottom: 1em; }
+    .canvas img { max-width: 100%; height: auto; border-radius: 4px; }
+    .empty-state { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; }
   </style>
 </head>
 <body>
@@ -288,13 +94,13 @@
   <div class="titlebar">
     <div class="brand">
       <span class="brand-icon"></span>
-      <span>OneNote Clone</span>
+      <span>OneNote Web Clone by Ian Schrauth</span>
     </div>
     <div class="top-actions">
       <select class="btn btn-secondary" id="select-recents">
         <option value="" disabled selected>Recent Subjects</option>
       </select>
-      <button class="btn" id="btn-open-folder">Open Subject Root Folder</button>
+      <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
     </div>
   </div>
 
@@ -302,7 +108,7 @@
     <div class="pane pane-sidebar">
       <div class="pane-header">
         <span>Subjects</span>
-        <button class="add-btn" id="btn-add-subject" title="Create New Subject">+</button>
+        <button type="button" class="add-btn" id="btn-add-subject" title="Create New Subject">+</button>
       </div>
       <ul class="pane-list" id="list-subjects"></ul>
     </div>
@@ -310,7 +116,7 @@
     <div class="pane pane-pages">
       <div class="pane-header">
         <span>Weeks</span>
-        <button class="add-btn" id="btn-add-week" title="Create New Week">+</button>
+        <button type="button" class="add-btn" id="btn-add-week" title="Create New Week">+</button>
       </div>
       <ul class="pane-list" id="list-weeks"></ul>
     </div>
@@ -326,10 +132,10 @@
           <option value="Times New Roman">Times New Roman</option>
         </select>
         
-        <button class="toolbar-btn" onclick="execCmd('bold')"><b>B</b></button>
-        <button class="toolbar-btn" onclick="execCmd('italic')"><i>I</i></button>
-        <button class="toolbar-btn" onclick="execCmd('underline')"><u>U</u></button>
-        <button class="toolbar-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('bold')"><b>B</b></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('italic')"><i>I</i></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('underline')"><u>U</u></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
         
         <label style="font-size:11px; margin-left:4px;">Text Color:</label>
         <input type="color" class="toolbar-input-color" onchange="execCmdArg('foreColor', this.value)" value="#ffffff">
@@ -337,9 +143,9 @@
         <label style="font-size:11px; margin-left:4px;">Highlight:</label>
         <input type="color" class="toolbar-input-color" onchange="execCmdArg('hiliteColor', this.value)" value="#ffff00">
 
-        <button class="toolbar-btn" onclick="execCmd('insertUnorderedList')">• List</button>
-        <button class="toolbar-btn" onclick="insertLink()">🔗 Link</button>
-        <button class="toolbar-btn" onclick="insertImage()">🖼️ Image</button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('insertUnorderedList')">• List</button>
+        <button type="button" class="toolbar-btn" onclick="insertLink()">🔗 Link</button>
+        <button type="button" class="toolbar-btn" onclick="insertImage()">🖼️ Image</button>
 
         <div style="flex:1"></div>
 
@@ -349,7 +155,7 @@
           <option value="md">Save as .MD</option>
           <option value="txt">Save as .TXT</option>
         </select>
-        <button class="btn" id="btn-save">Save Document</button>
+        <button type="button" class="btn" id="btn-save">Save Document</button>
       </div>
       
       <div class="editor-container" id="editor-wrapper">
@@ -365,6 +171,6 @@
     </div>
   </div>
 
- <script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
