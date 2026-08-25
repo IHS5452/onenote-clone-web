@@ -2,375 +2,667 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>OneNote Web - Ant Design Style</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OneNote Web Clone by Ian Schrauth</title>
+
   <!-- External Libraries -->
-  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <!-- Base Theme CSS (default) -->
   <style>
-    :root {
-      --ant-primary: #1677ff;
-      --ant-primary-hover: #4096ff;
-      --ant-primary-active: #0958d9;
-      --ant-bg-base: #ffffff;
-      --ant-bg-layout: #f5f5f5;
-      --ant-bg-container: #ffffff;
-      --ant-text-color: rgba(0, 0, 0, 0.88);
-      --ant-text-secondary: rgba(0, 0, 0, 0.45);
-      --ant-border-color: #d9d9d9;
-      --ant-border-split: #f0f0f0;
-      --ant-item-hover: #f5f5f5;
-      --ant-item-active: #e6f4ff;
-      --ant-radius: 6px;
-      --ant-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      --ant-shadow-modal: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
-    }
+ /* =========================================================
+   ANT DESIGN — DARK MODE DEFAULTS
+   ========================================================= */
+:root {
+  /* Ant dark palette */
+  --bg-titlebar: #001529;
+  --bg-sidebar: #001529;
+  --bg-pages: #0d1a26;
+  --bg-editor: #141414;
+  --bg-hover: rgba(255, 255, 255, 0.12);
+  --bg-modal: #1f1f1f;
 
-    [data-theme="dark"] {
-      --ant-primary: #1668dc;
-      --ant-primary-hover: #3c89e8;
-      --ant-primary-active: #1554ad;
-      --ant-bg-base: #141414;
-      --ant-bg-layout: #000000;
-      --ant-bg-container: #1d1d1d;
-      --ant-text-color: rgba(255, 255, 255, 0.85);
-      --ant-text-secondary: rgba(255, 255, 255, 0.45);
-      --ant-border-color: #424242;
-      --ant-border-split: #303030;
-      --ant-item-hover: #262626;
-      --ant-item-active: #111b26;
-    }
+  --text-main: #e6e6e6;
+  --text-bright: #ffffff;
+  --text-muted: #bfbfbf;
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
-      background: var(--ant-bg-layout); 
-      color: var(--ant-text-color); 
-      height: 100vh; 
-      display: flex; 
-      overflow: hidden; 
-    }
+  --accent-color: #1890ff;
+  --accent-hover: #40a9ff;
 
-    .app-container { display: flex; width: 100%; height: 100vh; }
-    
-    /* Ant Design Sider */
-    .sidebar { 
-      width: 280px; 
-      background: var(--ant-bg-container); 
-      border-right: 1px solid var(--ant-border-split); 
-      display: flex; 
-      flex-direction: column; 
-    }
+  --border-color: #303030;
+}
 
-    .main-editor { 
-      flex: 1; 
-      background: var(--ant-bg-base); 
-      display: flex; 
-      flex-direction: column; 
-      overflow-y: auto; 
-    }
+/* =========================================================
+   ANT DESIGN — LIGHT MODE
+   ========================================================= */
+:root[data-theme="light"] {
+  --bg-titlebar: #f0f2f5;
+  --bg-sidebar: #ffffff;
+  --bg-pages: #fafafa;
+  --bg-editor: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.06);
+  --bg-modal: #ffffff;
 
-    .sidebar-header { 
-      padding: 16px; 
-      border-bottom: 1px solid var(--ant-border-split); 
-      display: flex; 
-      flex-direction: column; 
-      gap: 10px; 
-    }
+  --text-main: #000000;
+  --text-bright: #000000;
+  --text-muted: #6e6e6e;
 
-    .sidebar-section { 
-      padding: 12px 16px 4px 16px; 
-    }
+  --accent-color: #1890ff;
+  --accent-hover: #40a9ff;
 
-    .sidebar-title { 
-      font-size: 0.75rem; 
-      font-weight: 600; 
-      text-transform: uppercase; 
-      letter-spacing: 0.5px;
-      color: var(--ant-text-secondary); 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      margin-bottom: 6px; 
-    }
+  --border-color: #d9d9d9;
+}
 
-    /* Ant Design Form Controls & Buttons */
-    select, input[type="text"] { 
-      font-size: 0.875rem; 
-      padding: 5px 11px; 
-      border-radius: var(--ant-radius); 
-      border: 1px solid var(--ant-border-color); 
-      background: var(--ant-bg-container); 
-      color: var(--ant-text-color); 
-      outline: none;
-      transition: all 0.2s ease;
-    }
+/* =========================================================
+   UNIVERSAL SAFETY — Prevent unreadable text
+   ========================================================= */
+body,
+.editor-container,
+.canvas,
+.pane,
+.pane-header {
+  color: var(--text-main);
+  background-color: var(--bg-editor);
+}
 
-    select:focus, input[type="text"]:focus {
-      border-color: var(--ant-primary);
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
-    }
+:root[data-theme="light"] body,
+:root[data-theme="light"] .canvas,
+:root[data-theme="light"] .editor-container {
+  color: #000000 !important;
+}
 
-    .ant-btn { 
-      font-size: 0.875rem; 
-      padding: 5px 15px; 
-      border-radius: var(--ant-radius); 
-      border: 1px solid var(--ant-border-color); 
-      background: var(--ant-bg-container); 
-      color: var(--ant-text-color); 
-      cursor: pointer; 
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
-    }
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .canvas,
+:root[data-theme="dark"] .editor-container {
+  color: #ffffff !important;
+}
 
-    .ant-btn:hover { 
-      color: var(--ant-primary-hover); 
-      border-color: var(--ant-primary-hover); 
-    }
+/* =========================================================
+   BASE ELEMENTS
+   ========================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
-    .ant-btn-primary { 
-      background: var(--ant-primary); 
-      color: #fff; 
-      border-color: var(--ant-primary); 
-      box-shadow: 0 2px 0 rgba(5, 145, 255, 0.1);
-    }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-editor);
+  color: var(--text-main);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
 
-    .ant-btn-primary:hover { 
-      background: var(--ant-primary-hover); 
-      color: #fff; 
-      border-color: var(--ant-primary-hover); 
-    }
+/* =========================================================
+   TITLE BAR
+   ========================================================= */
+.titlebar {
+  height: 44px;
+  background-color: var(--bg-titlebar);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
 
-    .ant-btn-icon {
-      padding: 2px 8px;
-      font-size: 0.8rem;
-    }
+.titlebar .brand {
+  font-weight: 600;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
 
-    /* Ant Design Menu Lists */
-    .item-list { 
-      list-style: none; 
-      overflow-y: auto; 
-      max-height: 220px; 
-      border-bottom: 1px solid var(--ant-border-split); 
-      padding: 0 8px;
-    }
+.top-actions { display: flex; gap: 8px; align-items: center; }
 
-    .item-list li { 
-      padding: 8px 12px; 
-      margin: 2px 0;
-      border-radius: var(--ant-radius);
-      cursor: pointer; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      font-size: 0.875rem;
-      transition: background-color 0.2s ease;
-    }
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+.btn {
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
 
-    .item-list li:hover { background: var(--ant-item-hover); }
-    
-    .item-list li.active { 
-      background: var(--ant-item-active); 
-      color: var(--ant-primary);
-      font-weight: 500; 
-    }
+.btn:hover { background-color: var(--accent-hover); }
 
-    .delete-icon { 
-      opacity: 0; 
-      font-size: 0.8rem; 
-      color: var(--ant-text-secondary);
-      transition: opacity 0.2s ease, color 0.2s ease;
-    }
+.btn-secondary {
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
 
-    .item-list li:hover .delete-icon { opacity: 1; }
-    .delete-icon:hover { color: #ff4d4f; }
+.btn-secondary:hover { background-color: var(--bg-hover); }
 
-    /* Ant Design Editor & Toolbar */
-    .toolbar { 
-      padding: 10px 24px; 
-      border-bottom: 1px solid var(--ant-border-split); 
-      display: none; 
-      gap: 8px; 
-      flex-wrap: wrap; 
-      background: var(--ant-bg-container); 
-      align-items: center;
-    }
+/* =========================================================
+   APP LAYOUT
+   ========================================================= */
+.app-container {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 44px);
+}
 
-    .editor-wrapper { 
-      padding: 40px 60px; 
-      max-width: 900px; 
-      margin: 0 auto; 
-      width: 100%; 
-    }
+.app-container.layout-left { flex-direction: row; }
+.app-container.layout-right { flex-direction: row-reverse; }
+.app-container.layout-bottom { flex-direction: column; }
 
-    .page-title { 
-      font-size: 2.25rem; 
-      font-weight: 600; 
-      border: none; 
-      outline: none; 
-      width: 100%; 
-      background: transparent; 
-      color: var(--ant-text-color); 
-      margin-bottom: 8px; 
-    }
+/* =========================================================
+   PANES (Sidebar + Weeks)
+   ========================================================= */
+.pane {
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-sidebar);
+}
 
-    .page-datetime { 
-      font-size: 0.8125rem; 
-      color: var(--ant-text-secondary); 
-      margin-bottom: 24px; 
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--ant-border-split);
-    }
+.pane-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .page-body { 
-      min-height: 400px; 
-      outline: none; 
-      font-size: 1rem; 
-      line-height: 1.7; 
-      color: var(--ant-text-color);
-    }
+.add-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+}
 
-    .empty-state { 
-      flex: 1; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      color: var(--ant-text-secondary); 
-      font-size: 0.875rem;
-    }
+.add-btn:hover { color: var(--text-bright); }
 
-    /* Ant Design Modal Dialogs */
-    .modal { 
-      display: none; 
-      position: fixed; 
-      inset: 0; 
-      background: rgba(0, 0, 0, 0.45); 
-      align-items: center; 
-      justify-content: center; 
-      z-index: 1000; 
-    }
+.pane-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
 
-    .modal.active { display: flex; }
+.pane-list li {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-main);
+}
 
-    .modal-content { 
-      background: var(--ant-bg-container); 
-      padding: 24px; 
-      border-radius: 8px; 
-      width: 380px; 
-      display: flex; 
-      flex-direction: column; 
-      gap: 16px; 
-      box-shadow: var(--ant-shadow-modal);
-    }
+.pane-list li:hover { background-color: var(--bg-hover); }
+.pane-list li.active { background-color: var(--accent-color); color: #ffffff; }
 
-    .modal-content h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--ant-text-color);
-    }
+.delete-icon {
+  display: none;
+  font-size: 12px;
+  color: #ff6b6b;
+  opacity: 0.7;
+}
 
-    .modal-content p {
-      font-size: 0.875rem;
-      color: var(--ant-text-secondary);
-      line-height: 1.5;
-    }
+.pane-list li:hover .delete-icon { display: inline-block; }
+
+/* =========================================================
+   EDITOR
+   ========================================================= */
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-editor);
+}
+
+.editor-toolbar {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background-color: var(--bg-titlebar);
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolbar-btn:hover { background-color: var(--bg-hover); }
+
+.toolbar-select,
+.toolbar-input-color {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.editor-container {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-bright);
+  border: none;
+  background: transparent;
+  width: 100%;
+}
+
+.canvas {
+  min-height: 400px;
+  outline: none;
+  color: var(--text-main);
+  font-size: 15px;
+  line-height: 1.6;
+  user-select: text;
+}
+
+.canvas img {
+  max-width: 100%;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+/* =========================================================
+   MODALS
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  background-color: var(--bg-modal);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 420px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* =========================================================
+   WINDOWS‑STYLE BOTTOM TASKBAR
+   ========================================================= */
+.app-container.layout-bottom {
+  flex-direction: column;
+}
+
+.pane-sidebar.layout-bottom,
+.pane-pages.layout-bottom {
+  width: 100%;
+  height: 48px;
+  flex-direction: row;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background-color: var(--bg-sidebar);
+  border-top: 1px solid var(--border-color);
+  border-right: none;
+}
+
+.pane-sidebar.layout-bottom .pane-header,
+.pane-pages.layout-bottom .pane-header {
+  display: none;
+}
+
+.pane-sidebar.layout-bottom .pane-list,
+.pane-pages.layout-bottom .pane-list {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  padding: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.pane-sidebar.layout-bottom .pane-list li,
+.pane-pages.layout-bottom .pane-list li {
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.pane-sidebar.layout-bottom .pane-list li:hover,
+.pane-pages.layout-bottom .pane-list li:hover {
+  background-color: var(--accent-color);
+  color: #ffffff;
+}
+
+.pane-sidebar.layout-bottom .pane-list li.active,
+.pane-pages.layout-bottom .pane-list li.active {
+  background-color: var(--accent-color);
+  color: #ffffff;
+}
+
+.pane-sidebar.layout-bottom .delete-icon,
+.pane-pages.layout-bottom .delete-icon {
+  display: none !important;
+}
+
+/* =========================================================
+   PDF EXPORT FIX — Prevent cut-off
+   ========================================================= */
+.pdf-wrapper,
+.pdf-wrapper * {
+  background: #ffffff !important;
+  color: #000000 !important;
+  width: 100% !important;
+  page-break-inside: avoid !important;
+  page-break-before: auto !important;
+  page-break-after: auto !important;
+}
+
+/* Proper indentation for lists in the editor */
+.canvas ul,
+.canvas ol {
+  margin-left: 32px;
+  padding-left: 16px;
+}
+
+.canvas li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+/* Nested lists */
+.canvas ul ul,
+.canvas ol ol,
+.canvas ul ol,
+.canvas ol ul {
+  margin-left: 24px;
+  padding-left: 16px;
+}
+
+
   </style>
 </head>
-<body>
+<body class="theme-ant">
 
-  <div class="app-container">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <button id="btn-open-folder" class="ant-btn ant-btn-primary" style="width: 100%;">Open Root Folder</button>
-        <select id="select-recents"></select>
-        <button id="btn-import-md" class="ant-btn" style="width: 100%;">Import MD Files</button>
-        <input type="file" id="input-import-md" multiple accept=".md" style="display:none;" />
-      </div>
+  <div class="titlebar">
+    <div class="brand">
+      <span>OneNote Web Clone by Ian Schrauth</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-secondary" id="btn-settings">Settings</button>
+      <button type="button" class="btn btn-secondary" id="btn-about">About</button>
+       <button type="button" class="btn btn-secondary"  id="btn-import-md" title="Import MD Files">Import MD File(s)</button>
 
-      <div class="sidebar-section">
-        <div class="sidebar-title">
-          <span>Subjects</span>
-          <button id="btn-add-subject" class="ant-btn ant-btn-icon">+</button>
-        </div>
-      </div>
-      <ul id="list-subjects" class="item-list"></ul>
+      <select class="btn btn-secondary" id="select-recents">
+        <option value="" disabled selected>Recent Subjects</option>
+      </select>
+      <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
+    </div>
+  </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-title">
-          <span>Weeks</span>
-          <button id="btn-add-week" class="ant-btn ant-btn-icon">+</button>
-        </div>
+  <div class="app-container layout-left" id="app-container">
+    <div class="pane pane-sidebar">
+      <div class="pane-header">
+        <span>Subjects</span>
+        <button type="button" class="add-btn" id="btn-add-subject" title="Create New Subject">+</button>
       </div>
-      <ul id="list-weeks" class="item-list" style="flex: 1; max-height: none;"></ul>
-
-      <div style="padding: 12px; border-top: 1px solid var(--ant-border-split);">
-        <button id="btn-about" class="ant-btn" style="width: 100%;">About</button>
-      </div>
+      <ul class="pane-list" id="list-subjects"></ul>
     </div>
 
-    <div class="main-editor">
-      <div id="toolbar" class="toolbar">
-        <button class="ant-btn" onclick="execCmd('bold')"><b>B</b></button>
-        <button class="ant-btn" onclick="execCmd('italic')"><i>I</i></button>
-        <button class="ant-btn" onclick="execCmd('underline')"><u>U</u></button>
-        <button class="ant-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
-        <button class="ant-btn" onclick="execCmdArg('formatBlock', '<h1>')">H1</button>
-        <button class="ant-btn" onclick="execCmdArg('formatBlock', '<h2>')">H2</button>
-        <button class="ant-btn" onclick="execCmd('insertUnorderedList')">• List</button>
-        <button class="ant-btn" onclick="execCmd('insertOrderedList')">1. List</button>
-        <button class="ant-btn" onclick="insertLink()">Link</button>
-        <button class="ant-btn" onclick="insertImage()">Image</button>
+    <div class="pane pane-pages">
+      <div class="pane-header">
+        <span>Weeks</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="add-btn" id="btn-add-week" title="Create New Week">+</button>
+        </div>
+      </div>
+      <ul class="pane-list" id="list-weeks"></ul>
+    </div>
+
+    <div class="editor-pane">
+      <div class="editor-toolbar" id="toolbar" style="display:none;">
         
-        <div style="margin-left: auto; display: flex; gap: 8px;">
-          <select id="export-format">
-            <option value="docx">.docx</option>
-            <option value="pdf">.pdf</option>
-            <option value="md">.md</option>
-            <option value="txt">.txt</option>
-          </select>
-          <button id="btn-save" class="ant-btn ant-btn-primary">Export</button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('bold')"><b>B</b></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('italic')"><i>I</i></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('underline')"><u>U</u></button>
+        <button type="button" class="toolbar-btn" onclick="execCmd('strikeThrough')"><s>S</s></button>
+        
+        <label style="font-size:11px; margin-left:4px;">Text Color:</label>
+        <input type="color" class="toolbar-input-color" id="text-color-picker" onchange="execCmdArg('foreColor', this.value)" value="#000000">
+
+        <label style="font-size:11px; margin-left:4px;">Highlight:</label>
+        <input type="color" class="toolbar-input-color" id="highlight-color-picker" onchange="execCmdArg('hiliteColor', this.value)" value="#ffff00">
+
+        <button type="button" class="toolbar-btn" onclick="execCmd('insertUnorderedList')">• List</button>
+        <button type="button" class="toolbar-btn" onclick="insertLink()">🔗 Link</button>
+        <button type="button" class="toolbar-btn" onclick="insertImage()">🖼️ Image</button>
+        <button type="button" class="btn" id="btn-save-file">Save</button>
+
+
+        <div style="flex:1"></div>
+
+        <select class="toolbar-select" id="line-spacing-select">
+          <option value="1">Single</option>
+          <option value="1.5">1.5</option>
+          <option value="2">Double</option>
+          <option value="custom">Custom…</option>
+        </select>
+
+        <select class="toolbar-select" id="export-format">
+          <option value="docx">Export as .DOCX (Word / LibreOffice)</option>
+          <option value="pdf">Export as .PDF</option>
+          <option value="md">Export as .MD</option>
+          <option value="txt">Export as .TXT</option>
+        </select>
+        <button type="button" class="btn" id="btn-save">Export File</button>
+      </div>
+      
+      <div class="editor-container" id="editor-wrapper">
+        <div class="empty-state" id="empty-state">Select or create a Subject and Week to get started</div>
+        <div id="editor-content" style="display:none;">
+          <div class="onenote-header">
+            <input type="text" class="page-title" id="page-title" placeholder="Week Title" />
+            <div class="page-datetime" id="page-datetime"></div>
+          </div>
+          <div class="canvas" id="page-body" contenteditable="true" onpaste="handlePaste(event)"></div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div id="empty-state" class="empty-state">
-        <p>Select or create a week to start editing</p>
+  <!-- About Modal -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">About Application</span>
+        <button type="button" class="modal-close" id="modal-close">&times;</button>
       </div>
-
-      <div id="editor-content" class="editor-wrapper" style="display:none;">
-        <input type="text" id="page-title" class="page-title" placeholder="Untitled Week" />
-        <div id="page-datetime" class="page-datetime"></div>
-        <div id="page-body" class="page-body" contenteditable="true"></div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span class="modal-label">App Name:</span>
+          <span class="modal-value">OneNote Web Clone</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Developer:</span>
+          <span class="modal-value">Ian Schrauth</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Version:</span>
+          <span class="modal-value">1.0.0</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">GitHub:</span>
+          <span class="modal-value">
+            <a href="https://github.com/IHS5452" target="_blank" rel="noopener">github.com/IHS5452</a>
+          </span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Email:</span>
+          <div class="modal-value" style="display: flex; align-items: center; gap: 8px;">
+            <span id="dev-email" hidden>ian.h.schrauth@gmail.com</span>
+            <button type="button" class="btn btn-secondary" id="btn-copy-email" style="padding: 2px 8px; font-size: 11px;">Copy</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div id="import-modal" class="modal">
-    <div class="modal-content">
-      <h3>Import Markdown Files</h3>
-      <p>Would you like to import into the currently selected subject or a new subject?</p>
-      <button id="btn-import-use-current" class="ant-btn ant-btn-primary">Use Selected Subject</button>
-      <div style="border-top: 1px solid var(--ant-border-split); margin: 4px 0;"></div>
-      <input type="text" id="input-import-new-subject" placeholder="New Subject Name" />
-      <button id="btn-import-use-new" class="ant-btn ant-btn-primary">Create & Import to New</button>
-      <button id="btn-import-cancel" class="ant-btn">Cancel</button>
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button type="button" class="modal-close" id="settings-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section-title">Appearance</div>
+        <div class="modal-field">
+          <label for="theme-mode-select">Theme Mode</label>
+          <select id="theme-mode-select">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+
+        <div class="modal-section-title">Line Spacing</div>
+        <div class="modal-field">
+          <label for="settings-line-spacing">Editor & PDF Line Spacing</label>
+          <select id="settings-line-spacing">
+            <option value="1">Single</option>
+            <option value="1.5">1.5</option>
+            <option value="2">Double</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <input type="number" id="settings-line-spacing-custom" min="0.5" step="0.1" placeholder="Custom spacing (e.g. 1.2)" style="display:none;">
+        </div>
+
+        <div class="modal-section-title">Fonts</div>
+        <div class="modal-checkbox-row">
+          <input type="checkbox" id="settings-local-fonts">
+          <label for="settings-local-fonts">Enable additional local fonts</label>
+        </div>
+        <div class="modal-field" id="settings-fonts-mode" style="display:none;">
+          <label for="settings-fonts-select-mode">Font selection</label>
+          <select id="settings-fonts-select-mode">
+            <option value="all">Add common fonts</option>
+            <option value="choose">Choose from list</option>
+          </select>
+        </div>
+        <div class="modal-field" id="settings-fonts-choose" style="display:none;">
+          <label>Select fonts to add</label>
+          <select id="settings-fonts-multi" multiple size="5">
+            <option value="Segoe UI">Segoe UI</option>
+            <option value="Tahoma">Tahoma</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Lucida Console">Lucida Console</option>
+          </select>
+        </div>
+
+        <div class="modal-section-title">UI Design</div>
+        <div class="modal-field">
+          <label for="settings-ui-theme">UI Theme</label>
+          <select id="settings-ui-theme">
+            <option value="ant">Ant Design</option>
+            <option value="material">Material UI</option>
+            <option value="chakra">Chakra UI</option>
+            <option value="shadcn">Shadcn UI</option>
+          </select>
+        </div>
+
+        <div class="modal-section-title">Sidebar Position</div>
+        <div class="modal-field">
+          <label for="settings-sidebar-position">Sidebar Position</label>
+          <select id="settings-sidebar-position">
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+            <option value="bottom">Bottom</option>
+          </select>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+          <button type="button" class="btn btn-secondary" id="settings-cancel">Cancel</button>
+          <button type="button" class="btn" id="settings-apply">Apply</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="about-modal" class="modal">
-    <div class="modal-content">
-      <h3>About OneNote Web</h3>
-      <p>A lightweight, browser-native note-taking application using the File System Access API.</p>
-      <p>Developer Contact: <span id="dev-email" style="color: var(--ant-primary);">contact@ianschrauth.com</span></p>
-      <div style="display:flex; gap:8px; justify-content: flex-end;">
-        <button id="btn-copy-email" class="ant-btn ant-btn-primary">Copy</button>
-        <button id="modal-close" class="ant-btn">Close</button>
+  <!-- Import MD Modal -->
+  <div class="modal-overlay" id="import-md-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Import Markdown Files</span>
+        <button type="button" class="modal-close" id="import-md-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-field">
+          <label for="import-md-subject-select">Subject</label>
+          <select id="import-md-subject-select"></select>
+        </div>
+        <div class="modal-field">
+          <label for="import-md-week-naming">Week naming</label>
+          <select id="import-md-week-naming">
+            <option value="keep">Use MD filenames as Week names</option>
+            <option value="prefix">Use prefix + index</option>
+          </select>
+        </div>
+        <div class="modal-field" id="import-md-prefix-field" style="display:none;">
+          <label for="import-md-prefix-input">Prefix (e.g. Week)</label>
+          <input type="text" id="import-md-prefix-input" placeholder="Week">
+        </div>
+        <div class="modal-field">
+          <label for="import-md-files">Markdown files</label>
+          <input type="file" id="import-md-files" accept=".md,text/markdown" multiple>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+          <button type="button" class="btn btn-secondary" id="import-md-cancel">Cancel</button>
+          <button type="button" class="btn" id="import-md-import">Import</button>
+        </div>
       </div>
     </div>
   </div>
