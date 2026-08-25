@@ -7,10 +7,6 @@
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <!-- Replaced html-docx-js with real OpenXML generator docx.js -->
-  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
@@ -306,17 +302,14 @@
       <span>OneNote Web Clone by Ian Schrauth</span>
     </div>
     <div class="top-actions">
-    <div class="top-actions">
-  <button type="button" class="btn btn-secondary" id="btn-about">About</button>
-  <select class="btn btn-secondary" id="select-recents">
-    <option value="" disabled selected>Recent Subjects</option>
-  </select>
-  <!-- New Import MD Button -->
-  <button type="button" class="btn btn-secondary" id="btn-import-md">Import MD</button>
-  <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
-  <!-- Hidden File Input for Bulk MD Uploads -->
-  <input type="file" id="input-import-md" accept=".md" multiple style="display: none;" />
-</div>
+      <button type="button" class="btn btn-secondary" id="btn-about">About</button>
+      <select class="btn btn-secondary" id="select-recents">
+        <option value="" disabled selected>Recent Subjects</option>
+      </select>
+      <button type="button" class="btn btn-secondary" id="btn-import-md">Import MD</button>
+      <button type="button" class="btn" id="btn-open-folder">Open Subject Root Folder</button>
+      <input type="file" id="input-import-md" accept=".md" multiple style="display: none;" />
+    </div>
   </div>
 
   <div class="app-container">
@@ -387,7 +380,6 @@
   </div>
 
   <!-- About Modal -->
- <!-- About Modal -->
   <div class="modal-overlay" id="about-modal">
     <div class="modal">
       <div class="modal-header">
