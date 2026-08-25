@@ -13,40 +13,123 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
   <style>
+    /* Dark Theme Defaults */
     :root {
       --bg-titlebar: #1e1e1e;
       --bg-sidebar: #252526;
       --bg-pages: #2d2d2d;
       --bg-editor: #181818;
+      --bg-hover: rgba(255, 255, 255, 0.08);
+      --bg-modal: #252526;
       --text-main: #cccccc;
+      --text-bright: #ffffff;
       --text-muted: #858585;
       --accent-color: #7719aa;
       --accent-hover: #8e24c7;
       --border-color: #333333;
     }
 
+    /* Light Theme Overrides */
+    :root[data-theme="light"] {
+      --bg-titlebar: #f3f3f3;
+      --bg-sidebar: #e8e8e8;
+      --bg-pages: #f0f0f0;
+      --bg-editor: #ffffff;
+      --bg-hover: rgba(0, 0, 0, 0.06);
+      --bg-modal: #ffffff;
+      --text-main: #242424;
+      --text-bright: #000000;
+      --text-muted: #6e6e6e;
+      --accent-color: #7719aa;
+      --accent-hover: #8e24c7;
+      --border-color: #d1d1d1;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-editor); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      background-color: var(--bg-editor); 
+      color: var(--text-main); 
+      height: 100vh; 
+      display: flex; 
+      flex-direction: column; 
+      overflow: hidden; 
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
     
-    .titlebar { height: 44px; background-color: var(--bg-titlebar); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
-    .titlebar .brand { font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 8px; font-size: 14px; }
-    .titlebar .brand-icon { width: 18px; height: 18px; background-color: var(--accent-color); border-radius: 4px; display: inline-block; }
+    .titlebar { 
+      height: 44px; 
+      background-color: var(--bg-titlebar); 
+      border-bottom: 1px solid var(--border-color); 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      padding: 0 16px; 
+    }
+    .titlebar .brand { 
+      font-weight: 600; 
+      color: var(--text-bright); 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+      font-size: 14px; 
+    }
+    .titlebar .brand-icon { 
+      width: 18px; 
+      height: 18px; 
+      background-color: var(--accent-color); 
+      border-radius: 4px; 
+      display: inline-block; 
+    }
     .top-actions { display: flex; gap: 8px; align-items: center; }
 
-    .btn { background-color: var(--accent-color); color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .btn { 
+      background-color: var(--accent-color); 
+      color: #ffffff; 
+      border: none; 
+      padding: 6px 12px; 
+      border-radius: 4px; 
+      cursor: pointer; 
+      font-size: 12px; 
+      font-weight: 500; 
+    }
     .btn:hover { background-color: var(--accent-hover); }
-    .btn-secondary { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
-    .btn-secondary:hover { background-color: rgba(255, 255, 255, 0.1); }
+    
+    .btn-secondary { 
+      background-color: var(--bg-sidebar); 
+      border: 1px solid var(--border-color); 
+      color: var(--text-main); 
+    }
+    .btn-secondary:hover { background-color: var(--bg-hover); }
     select.btn-secondary { outline: none; padding-right: 8px; }
 
     .app-container { display: flex; flex: 1; height: calc(100vh - 44px); }
     .pane { border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
-    .pane-header { padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-    .add-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; }
-    .add-btn:hover { color: #fff; }
+    
+    .pane-header { 
+      padding: 10px 14px; 
+      font-size: 11px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      color: var(--text-muted); 
+      letter-spacing: 0.5px; 
+      border-bottom: 1px solid var(--border-color); 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+    }
+    .add-btn { 
+      background: none; 
+      border: none; 
+      color: var(--text-muted); 
+      cursor: pointer; 
+      font-size: 16px; 
+      line-height: 1; 
+    }
+    .add-btn:hover { color: var(--text-bright); }
 
     .pane-list { list-style: none; overflow-y: auto; flex: 1; }
     .pane-list li { 
@@ -59,8 +142,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      color: var(--text-main);
     }
-    .pane-list li:hover { background-color: rgba(255, 255, 255, 0.05); }
+    .pane-list li:hover { background-color: var(--bg-hover); }
     .pane-list li.active { background-color: var(--accent-color); color: #ffffff; }
 
     .delete-icon {
@@ -77,31 +161,152 @@
     .pane-pages { width: 220px; background-color: var(--bg-pages); }
 
     .editor-pane { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-editor); }
-    .editor-toolbar { padding: 8px 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; background-color: var(--bg-titlebar); flex-wrap: wrap; }
-    .toolbar-btn { background: none; border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-    .toolbar-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
-    .toolbar-select, .toolbar-input-color { background: var(--bg-sidebar); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 3px; font-size: 12px; outline: none; }
+    
+    .editor-toolbar { 
+      padding: 8px 16px; 
+      border-bottom: 1px solid var(--border-color); 
+      display: flex; 
+      gap: 8px; 
+      align-items: center; 
+      background-color: var(--bg-titlebar); 
+      flex-wrap: wrap; 
+    }
+    .toolbar-btn { 
+      background: var(--bg-sidebar); 
+      border: 1px solid var(--border-color); 
+      color: var(--text-main); 
+      padding: 4px 8px; 
+      border-radius: 3px; 
+      cursor: pointer; 
+      font-size: 12px; 
+    }
+    .toolbar-btn:hover { background-color: var(--bg-hover); }
+    
+    .toolbar-select, .toolbar-input-color { 
+      background: var(--bg-sidebar); 
+      border: 1px solid var(--border-color); 
+      color: var(--text-main); 
+      padding: 3px 6px; 
+      border-radius: 3px; 
+      font-size: 12px; 
+      outline: none; 
+    }
     .toolbar-input-color { padding: 0; width: 24px; height: 24px; cursor: pointer; }
 
     .editor-container { flex: 1; padding: 40px; overflow-y: auto; }
     .onenote-header { border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 24px; }
-    .page-title { font-size: 32px; font-weight: 700; color: #ffffff; border: none; outline: none; background: transparent; width: 100%; }
+    
+    .page-title { 
+      font-size: 32px; 
+      font-weight: 700; 
+      color: var(--text-bright); 
+      border: none; 
+      outline: none; 
+      background: transparent; 
+      width: 100%; 
+    }
     .page-datetime { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-    .canvas { min-height: 400px; outline: none; color: #d4d4d4; font-size: 15px; line-height: 1.6; user-select: text; }
+    .canvas { 
+      min-height: 400px; 
+      outline: none; 
+      color: var(--text-main); 
+      font-size: 15px; 
+      line-height: 1.6; 
+      user-select: text; 
+    }
     .canvas p { margin-bottom: 1em; }
-    .canvas img { max-width: 100%; height: auto; border-radius: 4px; }
+    .canvas img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 8px 0; }
     .empty-state { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal {
+      background-color: var(--bg-modal);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 380px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      user-select: text;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .modal-close:hover { color: var(--text-bright); }
+    .modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .modal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .modal-value {
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+    .modal-value a {
+      color: var(--accent-hover);
+      text-decoration: none;
+    }
+    .modal-value a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
 
   <div class="titlebar">
     <div class="brand">
-      <span class="brand-icon"></span>
       <span>OneNote Web Clone by Ian Schrauth</span>
     </div>
     <div class="top-actions">
+      <button type="button" class="btn btn-secondary" id="btn-about">About</button>
       <select class="btn btn-secondary" id="select-recents">
         <option value="" disabled selected>Recent Subjects</option>
       </select>
@@ -155,12 +360,12 @@
         <div style="flex:1"></div>
 
         <select class="toolbar-select" id="export-format">
-          <option value="docx">Save as .DOCX</option>
-          <option value="pdf">Save as .PDF</option>
-          <option value="md">Save as .MD</option>
-          <option value="txt">Save as .TXT</option>
+          <option value="docx">Export as .DOCX (Word / LibreOffice)</option>
+          <option value="pdf">Export as .PDF</option>
+          <option value="md">Export as .MD</option>
+          <option value="txt">Export as .TXT</option>
         </select>
-        <button type="button" class="btn" id="btn-save">Save Document</button>
+        <button type="button" class="btn" id="btn-save">Export File</button>
       </div>
       
       <div class="editor-container" id="editor-wrapper">
@@ -170,12 +375,51 @@
             <input type="text" class="page-title" id="page-title" placeholder="Week Title" />
             <div class="page-datetime" id="page-datetime"></div>
           </div>
-          <div class="canvas" id="page-body" contenteditable="true"></div>
+          <div class="canvas" id="page-body" contenteditable="true" onpaste="handlePaste(event)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+ <!-- About Modal -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">About Application</span>
+        <button type="button" class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <span class="modal-label">App Name:</span>
+          <span class="modal-value">OneNote Web Clone</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Developer:</span>
+          <span class="modal-value">Ian Schrauth</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Version:</span>
+          <span class="modal-value">1.0.0</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">GitHub:</span>
+          <span class="modal-value">
+            <a href="https://github.com/IHS5452" target="_blank" rel="noopener">github.com/ianschrauth</a>
+          </span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-label">Email:</span>
+          <div class="modal-value" style="display: flex; align-items: center; gap: 8px;">
+            <span id="dev-email" hidden>ian.h.schrauth@gmail.com</span>
+            <button type="button" class="btn btn-secondary" id="btn-copy-email" style="padding: 2px 8px; font-size: 11px;">Copy</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script src="script.js"></script>
+  
 </body>
 </html>
