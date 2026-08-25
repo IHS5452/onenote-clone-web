@@ -1,9 +1,4 @@
-// Safe resolver helper for docx module exports
-function getDocxLib() {
-  if (window.docx && window.docx.Document) return window.docx;
-  if (typeof docx !== 'undefined' && docx.Document) return docx;
-  return null;
-}
+const docx = window.docx;
 
 let rootHandle = null;
 let selectedSubjectHandle = null;
@@ -11,21 +6,12 @@ let selectedWeekHandle = null;
 let recentsMap = new Map();
 let autoSaveTimer = null;
 
-// --- DOM Elements ---
 const btnOpenFolder = document.getElementById('btn-open-folder');
 const btnAddSubject = document.getElementById('btn-add-subject');
 const btnAddWeek = document.getElementById('btn-add-week');
+const btnImportMd = document.getElementById('btn-import-md');
 const selectRecents = document.getElementById('select-recents');
 const btnSave = document.getElementById('btn-save');
-
-const btnImportMd = document.getElementById('btn-import-md');
-const inputImportMd = document.getElementById('input-import-md');
-
-const importModal = document.getElementById('import-modal');
-const btnImportUseCurrent = document.getElementById('btn-import-use-current');
-const btnImportUseNew = document.getElementById('btn-import-use-new');
-const inputImportNewSubject = document.getElementById('input-import-new-subject');
-const btnImportCancel = document.getElementById('btn-import-cancel');
 
 const listSubjects = document.getElementById('list-subjects');
 const listWeeks = document.getElementById('list-weeks');
@@ -35,44 +21,50 @@ const toolbar = document.getElementById('toolbar');
 const pageTitle = document.getElementById('page-title');
 const pageDatetime = document.getElementById('page-datetime');
 const pageBody = document.getElementById('page-body');
+const appContainer = document.getElementById('app-container');
 
-pageBody.addEventListener('paste', handlePaste);
+// Settings modal elements
+const btnSettings = document.getElementById('btn-settings');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
+const settingsApply = document.getElementById('settings-apply');
+const settingsCancel = document.getElementById('settings-cancel');
+const themeModeSelect = document.getElementById('theme-mode-select');
+const settingsLineSpacing = document.getElementById('settings-line-spacing');
+const settingsLineSpacingCustom = document.getElementById('settings-line-spacing-custom');
+const settingsLocalFonts = document.getElementById('settings-local-fonts');
+const settingsFontsMode = document.getElementById('settings-fonts-mode');
+const settingsFontsSelectMode = document.getElementById('settings-fonts-select-mode');
+const settingsFontsChoose = document.getElementById('settings-fonts-choose');
+const settingsFontsMulti = document.getElementById('settings-fonts-multi');
+const settingsUiTheme = document.getElementById('settings-ui-theme');
+const settingsSidebarPosition = document.getElementById('settings-sidebar-position');
+const lineSpacingSelect = document.getElementById('line-spacing-select');
 
+// Import MD modal elements
+const importMdModal = document.getElementById('import-md-modal');
+const importMdClose = document.getElementById('import-md-close');
+const importMdSubjectSelect = document.getElementById('import-md-subject-select');
+const importMdWeekNaming = document.getElementById('import-md-week-naming');
+const importMdPrefixField = document.getElementById('import-md-prefix-field');
+const importMdPrefixInput = document.getElementById('import-md-prefix-input');
+const importMdFilesInput = document.getElementById('import-md-files');
+const importMdCancel = document.getElementById('import-md-cancel');
+const importMdImport = document.getElementById('import-md-import');
+
+// About modal
+const btnAbout = document.getElementById('btn-about');
+const aboutModal = document.getElementById('about-modal');
+const modalClose = document.getElementById('modal-close');
+const btnCopyEmail = document.getElementById('btn-copy-email');
+const devEmail = document.getElementById('dev-email').textContent;
+
+// --- Natural Alphanumeric Sorting Helper ---
 function alphaNumericCompare(a, b) {
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-function insertHtmlAtCaret(html) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
-
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-
-  const frag = document.createDocumentFragment();
-  let node, lastNode;
-  while ((node = tempDiv.firstChild)) {
-    lastNode = frag.appendChild(node);
-  }
-
-  range.insertNode(frag);
-
-  if (lastNode) {
-    range.setStartAfter(lastNode);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-}
-
-function isMarkdownText(text) {
-  const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
-  return mdRegex.test(text);
-}
-
+// --- Enhanced Handle Paste for MD, HTML, DOCX, and Images ---
 async function handlePaste(e) {
   const clipboardData = e.clipboardData || window.clipboardData;
   if (!clipboardData) return;
@@ -80,7 +72,7 @@ async function handlePaste(e) {
   const items = clipboardData.items;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-
+    
     if (item.type.indexOf('image') !== -1) {
       e.preventDefault();
       const file = item.getAsFile();
@@ -98,15 +90,15 @@ async function handlePaste(e) {
       e.preventDefault();
       const file = item.getAsFile();
       const arrayBuffer = await file.arrayBuffer();
-
+      
       const options = {
-        convertImage: mammoth.images.imgElement(function (image) {
-          return image.read("base64").then(function (imageBuffer) {
+        convertImage: mammoth.images.imgElement(function(image) {
+          return image.read("base64").then(function(imageBuffer) {
             return { src: "data:" + image.contentType + ";base64," + imageBuffer };
           });
         })
       };
-
+      
       const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, options);
       if (result.value) {
         insertHtmlAtCaret(result.value);
@@ -119,146 +111,57 @@ async function handlePaste(e) {
   const htmlText = clipboardData.getData('text/html');
   const plainText = clipboardData.getData('text/plain');
 
-  if (htmlText && htmlText.trim()) {
-    e.preventDefault();
-    insertHtmlAtCaret(htmlText);
-    saveCurrentWeekToFile();
-    return;
-  }
+if (htmlText && htmlText.trim()) {
+  e.preventDefault();
+  insertHtmlAtCaret(htmlText);
+  normalizeEditorLists();
+  saveCurrentWeekToFile();
+  return;
+}
 
-  if (plainText && isMarkdownText(plainText)) {
-    e.preventDefault();
-    if (window.marked) {
-      const parsedHtml = window.marked.parse(plainText);
-      insertHtmlAtCaret(parsedHtml);
-      saveCurrentWeekToFile();
-      return;
-    }
+if (plainText && isMarkdownText(plainText)) {
+  e.preventDefault();
+  const parsedHtml = window.marked.parse(plainText);
+  insertHtmlAtCaret(parsedHtml);
+  normalizeEditorLists();
+  saveCurrentWeekToFile();
+  return;
+
   }
 }
 
-function triggerFilePicker(targetSubjectName) {
-  inputImportMd.value = '';
-  inputImportMd.dataset.targetSubject = targetSubjectName;
-  inputImportMd.click();
+function isMarkdownText(text) {
+  const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
+  return mdRegex.test(text);
 }
 
-btnImportMd.addEventListener('click', () => {
-  if (!rootHandle) {
-    return alert("Please open or select a root subject folder first.");
-  }
+function insertHtmlAtCaret(html) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+  
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
 
-  if (selectedSubjectHandle) {
-    if (importModal) {
-      if (inputImportNewSubject) inputImportNewSubject.value = '';
-      importModal.classList.add('active');
-    } else {
-      triggerFilePicker(selectedSubjectHandle.name);
-    }
-  } else {
-    const subjectName = prompt("Enter the Subject name to import these files into:");
-    if (subjectName && subjectName.trim()) {
-      triggerFilePicker(subjectName.trim());
-    }
-  }
-});
-
-if (btnImportUseCurrent) {
-  btnImportUseCurrent.addEventListener('click', () => {
-    importModal.classList.remove('active');
-    if (selectedSubjectHandle) {
-      triggerFilePicker(selectedSubjectHandle.name);
-    }
-  });
-}
-
-if (btnImportUseNew) {
-  btnImportUseNew.addEventListener('click', () => {
-    const newName = inputImportNewSubject ? inputImportNewSubject.value.trim() : '';
-    if (!newName) {
-      alert("Please enter a subject name.");
-      return;
-    }
-    importModal.classList.remove('active');
-    triggerFilePicker(newName);
-  });
-}
-
-if (btnImportCancel) {
-  btnImportCancel.addEventListener('click', () => {
-    importModal.classList.remove('active');
-  });
-}
-
-inputImportMd.addEventListener('change', async (e) => {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-
-  try {
-    const subjectName = e.target.dataset.targetSubject;
-    if (!subjectName || !subjectName.trim()) return;
-
-    const cleanSubjectName = subjectName.trim();
-
-    const hasPermission = await verifyPermission(rootHandle, true);
-    if (!hasPermission) return alert("Write permission was denied.");
-
-    const targetSubjectHandle = await rootHandle.getDirectoryHandle(cleanSubjectName, { create: true });
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const originalNameWithoutExt = file.name.replace(/\.md$/i, '');
-      const targetFileName = `${originalNameWithoutExt}.docx`;
-
-      const mdContent = await file.text();
-
-      let htmlContent = '';
-      if (window.marked) {
-        htmlContent = window.marked.parse(mdContent);
-      } else {
-        htmlContent = `<p>${mdContent.replace(/\n/g, '<br>')}</p>`;
-      }
-
-      const docxBlob = await generateDocxBlobFromHtml(htmlContent);
-
-      const newFileHandle = await targetSubjectHandle.getFileHandle(targetFileName, { create: true });
-      const writable = await newFileHandle.createWritable();
-      await writable.write(docxBlob);
-      await writable.close();
-    }
-
-    await loadSubjects();
-
-    const subjectItems = Array.from(listSubjects.querySelectorAll('li'));
-    const matchedLi = subjectItems.find(li => li.handle && li.handle.name === cleanSubjectName);
-    if (matchedLi) {
-      await selectSubject(matchedLi.handle, matchedLi);
-    }
-
-    alert(`Successfully imported and formatted ${files.length} Markdown file(s) into "${cleanSubjectName}".`);
-
-  } catch (err) {
-    console.error("Bulk MD Import Error:", err);
-    alert(`Failed to import files: ${err.message}`);
-  } finally {
-    e.target.value = '';
-    delete e.target.dataset.targetSubject;
-  }
-});
-
-async function generateDocxBlobFromHtml(htmlString) {
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlString;
+  tempDiv.innerHTML = html;
+  
+  const frag = document.createDocumentFragment();
+  let node, lastNode;
+  while ((node = tempDiv.firstChild)) {
+    lastNode = frag.appendChild(node);
+  }
+  
+  range.insertNode(frag);
 
-  const originalHtml = pageBody.innerHTML;
-  pageBody.innerHTML = tempDiv.innerHTML;
-
-  const blob = await generateDocxBlob();
-
-  pageBody.innerHTML = originalHtml;
-  return blob;
+  if (lastNode) {
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
 }
 
+// --- IndexedDB for Persisting Handles ---
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('OneNoteWebDB', 1);
@@ -312,6 +215,7 @@ async function verifyPermission(fileHandle, readWrite = true) {
   return false;
 }
 
+// --- DOCX helpers ---
 function isNodeFormatted(node, targetTag) {
   let current = node.parentElement;
   while (current && current.id !== 'page-body') {
@@ -334,8 +238,7 @@ function dataURLToUint8Array(dataURL) {
 
 function parseElementToDocxRuns(node) {
   const runs = [];
-  const docxLib = getDocxLib();
-  if (!docxLib) throw new Error("docx library is not available.");
+  const docxLib = window.docx || docx;
 
   node.childNodes.forEach(child => {
     if (child.nodeType === Node.TEXT_NODE) {
@@ -351,11 +254,6 @@ function parseElementToDocxRuns(node) {
       const tag = child.tagName.toUpperCase();
       if (tag === 'BR') {
         runs.push(new docxLib.TextRun({ break: 1 }));
-      } else if (tag === 'CODE') {
-        runs.push(new docxLib.TextRun({
-          text: child.textContent,
-          font: "Courier New",
-        }));
       } else if (tag === 'IMG') {
         const src = child.src;
         if (src.startsWith('data:image')) {
@@ -384,42 +282,56 @@ function parseElementToDocxRuns(node) {
 }
 
 async function generateDocxBlob() {
-  const docxLib = getDocxLib();
-  if (!docxLib) throw new Error("docx library is not available.");
-
+  const docxLib = window.docx || docx;
   const paragraphs = [];
+
   const blockElements = Array.from(pageBody.childNodes);
-  
+
   if (blockElements.length === 0) {
     paragraphs.push(new docxLib.Paragraph({ text: "" }));
   } else {
     blockElements.forEach(node => {
+
+      // TEXT NODE
       if (node.nodeType === Node.TEXT_NODE) {
         if (node.textContent.trim()) {
           paragraphs.push(new docxLib.Paragraph({
             children: [new docxLib.TextRun(node.textContent)],
           }));
         }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        return;
+      }
+
+      // ELEMENT NODE
+      if (node.nodeType === Node.ELEMENT_NODE) {
         const tag = node.tagName.toUpperCase();
+
+        /* -----------------------------------------
+           LISTS (UL / OL)
+        ----------------------------------------- */
         if (tag === 'UL' || tag === 'OL') {
-          node.querySelectorAll('li').forEach(li => {
+          const listItems = node.querySelectorAll(':scope > li');
+
+          listItems.forEach(li => {
+            const isNested = li.querySelector("ul, ol") !== null;
+
             paragraphs.push(new docxLib.Paragraph({
               children: parseElementToDocxRuns(li),
-              bullet: { level: 0 }
+              bullet: { level: isNested ? 1 : 0 },
+              spacing: { line: 360 },       // 1.5 line spacing
+              indent: { left: isNested ? 1440 : 720 } // nested = 1 inch, normal = 0.5 inch
             }));
           });
-        } else if (tag === 'BLOCKQUOTE') {
-          paragraphs.push(new docxLib.Paragraph({
-            children: parseElementToDocxRuns(node),
-            indent: { left: 720 },
-          }));
-        } else if (tag === 'PRE') {
-          paragraphs.push(new docxLib.Paragraph({
-            children: parseElementToDocxRuns(node),
-          }));
-        } else if (tag === 'IMG') {
+
+          return;
+        }
+
+        /* -----------------------------------------
+           IMAGES
+        ----------------------------------------- */
+        if (tag === 'IMG') {
           const src = node.src;
+
           if (src.startsWith('data:image')) {
             try {
               const imageBytes = dataURLToUint8Array(src);
@@ -444,31 +356,44 @@ async function generateDocxBlob() {
               ]
             }));
           }
-        } else if (tag === 'H1') {
+
+          return;
+        }
+
+        /* -----------------------------------------
+           HEADINGS
+        ----------------------------------------- */
+        if (tag === 'H1') {
           paragraphs.push(new docxLib.Paragraph({
             children: parseElementToDocxRuns(node),
             heading: docxLib.HeadingLevel.HEADING_1,
           }));
-        } else if (tag === 'H2') {
+          return;
+        }
+
+        if (tag === 'H2') {
           paragraphs.push(new docxLib.Paragraph({
             children: parseElementToDocxRuns(node),
             heading: docxLib.HeadingLevel.HEADING_2,
           }));
-        } else if (tag === 'H3') {
-          paragraphs.push(new docxLib.Paragraph({
-            children: parseElementToDocxRuns(node),
-            heading: docxLib.HeadingLevel.HEADING_3,
-          }));
-        } else {
-          const runs = parseElementToDocxRuns(node);
-          paragraphs.push(new docxLib.Paragraph({
-            children: runs.length > 0 ? runs : [new docxLib.TextRun(node.innerText || "")]
-          }));
+          return;
         }
+
+        /* -----------------------------------------
+           DEFAULT PARAGRAPH
+        ----------------------------------------- */
+        const runs = parseElementToDocxRuns(node);
+
+        paragraphs.push(new docxLib.Paragraph({
+          children: runs.length > 0 ? runs : [new docxLib.TextRun(node.innerText || "")]
+        }));
       }
     });
   }
 
+  /* -----------------------------------------
+     BUILD DOCX
+  ----------------------------------------- */
   const doc = new docxLib.Document({
     sections: [{
       properties: {},
@@ -478,6 +403,7 @@ async function generateDocxBlob() {
 
   return await docxLib.Packer.toBlob(doc);
 }
+
 
 async function saveCurrentWeekToFile() {
   if (!selectedWeekHandle) return;
@@ -491,6 +417,7 @@ async function saveCurrentWeekToFile() {
   }
 }
 
+// --- Root Directory Loading ---
 btnOpenFolder.addEventListener('click', async (e) => {
   e.preventDefault();
   try {
@@ -521,10 +448,11 @@ selectRecents.addEventListener('change', async (e) => {
     await loadSubjects();
   } catch (err) {
     console.error("Failed to restore folder:", err);
-    alert("Could not access recent folder. Please open it using 'Open Root Folder'.");
+    alert("Could not access recent folder. Please open it using 'Open Subject Root Folder'.");
   }
 });
 
+// --- Subject List Management ---
 async function loadSubjects() {
   listSubjects.innerHTML = '';
   listWeeks.innerHTML = '';
@@ -544,6 +472,8 @@ async function loadSubjects() {
   entries.forEach(entry => {
     addSubjectUIElement(entry);
   });
+
+  updateImportMdSubjectSelect();
 }
 
 function addSubjectUIElement(entryHandle) {
@@ -570,6 +500,7 @@ function addSubjectUIElement(entryHandle) {
           listWeeks.innerHTML = '';
           resetEditor();
         }
+        updateImportMdSubjectSelect();
       } catch (err) {
         alert(`Failed to delete subject: ${err.message}`);
       }
@@ -607,6 +538,7 @@ async function selectSubject(handle, element) {
   });
 }
 
+// --- Week List Management ---
 function addWeekUIElement(fileHandle) {
   const li = document.createElement('li');
   li.handle = fileHandle;
@@ -672,7 +604,8 @@ async function loadWeek(fileHandle, element) {
     });
     
     const contentHtml = result.value ? result.value.trim() : '';
-    pageBody.innerHTML = contentHtml.length > 0 ? contentHtml : '<p><br></p>';
+pageBody.innerHTML = contentHtml.length > 0 ? contentHtml : '<p><br></p>';
+normalizeEditorLists();
 
     emptyState.style.display = 'none';
     editorContent.style.display = 'block';
@@ -683,6 +616,7 @@ async function loadWeek(fileHandle, element) {
   }
 }
 
+// --- Rename Operations ---
 async function renameSelectedSubject() {
   if (!selectedSubjectHandle || !rootHandle) {
     return alert("Please select a subject to rename.");
@@ -697,6 +631,8 @@ async function renameSelectedSubject() {
   try {
     await saveCurrentWeekToFile();
 
+    // NOTE: File System Access API does not expose a direct rename;
+    // this is effectively a move operation.
     const newDirHandle = await rootHandle.getDirectoryHandle(cleanName, { create: true });
 
     for await (const entry of selectedSubjectHandle.values()) {
@@ -706,10 +642,12 @@ async function renameSelectedSubject() {
         const writable = await newFileHandle.createWritable();
         await writable.write(await oldFile.arrayBuffer());
         await writable.close();
+        await selectedSubjectHandle.removeEntry(entry.name);
       }
     }
 
     await rootHandle.removeEntry(oldName, { recursive: true });
+
     await loadSubjects();
 
     const subjectItems = Array.from(listSubjects.querySelectorAll('li'));
@@ -762,6 +700,7 @@ async function renameSelectedWeek() {
   }
 }
 
+// --- Auto-Save Event Controls ---
 pageBody.addEventListener('blur', saveCurrentWeekToFile);
 
 pageTitle.addEventListener('blur', async () => {
@@ -784,6 +723,7 @@ pageTitle.addEventListener('input', () => {
   autoSaveTimer = setTimeout(saveCurrentWeekToFile, 1000);
 });
 
+// --- Dynamic File Handlers ---
 btnAddSubject.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!rootHandle) return alert("Please open or select a root folder first.");
@@ -827,8 +767,7 @@ btnAddWeek.addEventListener('click', async (e) => {
     await saveCurrentWeekToFile();
 
     const fileName = `${weekName.trim()}.docx`;
-    const docxLib = getDocxLib();
-    if (!docxLib) return alert("docx library is not available.");
+    const docxLib = window.docx || docx;
     
     const doc = new docxLib.Document({
       sections: [{
@@ -859,6 +798,115 @@ btnAddWeek.addEventListener('click', async (e) => {
   }
 });
 
+// --- Import MD Modal Logic ---
+function updateImportMdSubjectSelect() {
+  if (!importMdSubjectSelect) return;
+  importMdSubjectSelect.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  placeholder.textContent = 'Select Subject';
+  importMdSubjectSelect.appendChild(placeholder);
+
+  const subjectItems = Array.from(listSubjects.querySelectorAll('li'));
+  subjectItems.forEach(li => {
+    if (li.handle) {
+      const opt = document.createElement('option');
+      opt.value = li.handle.name;
+      opt.textContent = li.handle.name;
+      importMdSubjectSelect.appendChild(opt);
+    }
+  });
+}
+
+btnImportMd.addEventListener('click', (e) => {
+  e.preventDefault();
+  if (!rootHandle) {
+    alert("Please open a root folder first.");
+    return;
+  }
+  updateImportMdSubjectSelect();
+  importMdModal.classList.add('active');
+});
+
+importMdClose.addEventListener('click', () => {
+  importMdModal.classList.remove('active');
+});
+
+importMdCancel.addEventListener('click', () => {
+  importMdModal.classList.remove('active');
+});
+
+importMdWeekNaming.addEventListener('change', (e) => {
+  if (e.target.value === 'prefix') {
+    importMdPrefixField.style.display = 'flex';
+  } else {
+    importMdPrefixField.style.display = 'none';
+  }
+});
+
+importMdImport.addEventListener('click', async () => {
+  const subjectName = importMdSubjectSelect.value;
+  if (!subjectName) {
+    alert("Please select a subject.");
+    return;
+  }
+  const files = importMdFilesInput.files;
+  if (!files || files.length === 0) {
+    alert("Please select at least one Markdown file.");
+    return;
+  }
+
+  const weekNamingMode = importMdWeekNaming.value;
+  const prefix = importMdPrefixInput.value.trim() || 'Week';
+
+  try {
+    const subjectHandle = await rootHandle.getDirectoryHandle(subjectName, { create: false });
+    const hasPermission = await verifyPermission(subjectHandle, true);
+    if (!hasPermission) {
+      alert("Write permission denied for selected subject.");
+      return;
+    }
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const mdText = await file.text();
+      const html = window.marked ? window.marked.parse(mdText) : mdText;
+
+      pageBody.innerHTML = html || '<p><br></p>';
+
+      const baseName = file.name.replace(/\.md$/i, '');
+      let weekName;
+      if (weekNamingMode === 'keep') {
+        weekName = baseName;
+      } else {
+        weekName = `${prefix} ${i + 1}`;
+      }
+      const fileName = `${weekName}.docx`;
+
+      const docxBlob = await generateDocxBlob();
+      const newFileHandle = await subjectHandle.getFileHandle(fileName, { create: true });
+      const writable = await newFileHandle.createWritable();
+      await writable.write(docxBlob);
+      await writable.close();
+    }
+
+    if (selectedSubjectHandle && selectedSubjectHandle.name === subjectName) {
+      const activeSubjectLi = listSubjects.querySelector('li.active');
+      await selectSubject(selectedSubjectHandle, activeSubjectLi);
+    }
+
+    importMdModal.classList.remove('active');
+    importMdFilesInput.value = '';
+    pageBody.innerHTML = '<p><br></p>';
+  } catch (err) {
+    console.error("MD import error:", err);
+    alert("Failed to import Markdown files.");
+  }
+});
+
+// --- Formatting Actions ---
 function execCmd(command) { document.execCommand(command, false, null); }
 function execCmdArg(command, arg) { document.execCommand(command, false, arg); }
 
@@ -869,7 +917,7 @@ function insertLink() {
   const customText = prompt("Enter link text:", selectedText || url);
   
   if (customText && customText !== selectedText) {
-    const linkHtml = `<a href="${url}" target="_blank" style="color:#1677ff;">${customText}</a>`;
+    const linkHtml = `<a href="${url}" target="_blank" style="color:#7719aa;">${customText}</a>`;
     document.execCommand('insertHTML', false, linkHtml);
   } else {
     document.execCommand('createLink', false, url);
@@ -881,6 +929,7 @@ function insertImage() {
   if (url) document.execCommand('insertImage', false, url);
 }
 
+// --- Universal Download Helper ---
 function downloadFile(filename, content, mimeType) {
   const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
   const a = document.createElement('a');
@@ -890,6 +939,7 @@ function downloadFile(filename, content, mimeType) {
   URL.revokeObjectURL(a.href);
 }
 
+// --- Export & Save Action ---
 btnSave.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!selectedWeekHandle) return;
@@ -898,26 +948,77 @@ btnSave.addEventListener('click', async (e) => {
   const title = pageTitle.value || "Untitled Week";
   const htmlBody = pageBody.innerHTML;
 
+  const currentLineHeight = window.getComputedStyle(pageBody).lineHeight;
+
   try {
     if (format === 'docx') {
       const blob = await generateDocxBlob();
       downloadFile(`${title}.docx`, blob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    } else if (format === 'pdf') {
-      const opt = { 
-        margin: 15, 
-        filename: `${title}.pdf`, 
-        html2canvas: { scale: 2 } 
-      };
-      const pdfWrapper = document.createElement('div');
-      pdfWrapper.innerHTML = `<h1>${title}</h1><hr/><br/>${htmlBody}`;
-      html2pdf().set(opt).from(pdfWrapper).save();
-    } else if (format === 'md') {
+} else if (format === 'pdf') {
+  const opt = {
+    margin: 25,
+    filename: `${title}.pdf`,
+    image: { type: 'jpeg', quality: 1 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' }
+  };
+
+  const pdfWrapper = document.createElement('div');
+
+  pdfWrapper.style.backgroundColor = '#ffffff';
+  pdfWrapper.style.color = '#000000';
+  pdfWrapper.style.fontFamily = 'Georgia, serif';
+  pdfWrapper.style.fontSize = '12pt';
+  pdfWrapper.style.lineHeight = '1.5';
+  pdfWrapper.style.padding = '40px';
+  pdfWrapper.style.width = '100%';
+
+  pdfWrapper.style.pageBreakInside = 'avoid';
+  pdfWrapper.style.pageBreakBefore = 'auto';
+  pdfWrapper.style.pageBreakAfter = 'auto';
+
+  pdfWrapper.innerHTML = `
+    <h1 style="font-size:22pt; margin-bottom:16px; font-weight:bold;">${title}</h1>
+    <hr style="margin:20px 0; border:1px solid #000;">
+    <div style="font-size:12pt; line-height:1.5; margin-top:20px;">
+      ${htmlBody}
+    </div>
+  `;
+
+  /* Fix list indentation in PDF */
+  pdfWrapper.querySelectorAll("ul, ol").forEach(list => {
+    list.style.marginLeft = "32px";
+    list.style.paddingLeft = "16px";
+    list.style.lineHeight = "1.5";
+  });
+
+  pdfWrapper.querySelectorAll("ul ul, ol ol, ul ol, ol ul").forEach(list => {
+    list.style.marginLeft = "48px";
+  });
+
+  pdfWrapper.querySelectorAll("li").forEach(li => {
+    li.style.marginBottom = "6px";
+  });
+
+  html2pdf().set(opt).from(pdfWrapper).save();
+} else if (format === 'md') {
       const markdownText = `# ${title}\n\n` + htmlToMarkdown(pageBody);
       downloadFile(`${title}.md`, markdownText, 'text/markdown');
     } else if (format === 'txt') {
       const plainText = `${title}\n${'='.repeat(title.length)}\n\n` + pageBody.innerText;
       downloadFile(`${title}.txt`, plainText, 'text/plain');
-    }
+    } else if (tag === 'ul') {
+  node.querySelectorAll('li').forEach(li => {
+    plainText += `  • ${li.innerText}\n`;
+  });
+} else if (tag === 'ol') {
+  let i = 1;
+  node.querySelectorAll('li').forEach(li => {
+    plainText += `  ${i}. ${li.innerText}\n`;
+    i++;
+  });
+}
+
   } catch (err) {
     console.error(err);
     alert('Export error encountered.');
@@ -937,7 +1038,18 @@ function htmlToMarkdown(element) {
       else if (tag === 'u') output += `_${htmlToMarkdown(node)}_`;
       else if (tag === 'a') output += `[${htmlToMarkdown(node)}](${node.getAttribute('href')})`;
       else if (tag === 'img') output += `![Image](${node.src})\n\n`;
-      else if (tag === 'li') output += `* ${htmlToMarkdown(node)}\n`;
+else if (tag === 'li') {
+  output += `* ${htmlToMarkdown(node)}\n\n`;
+}
+else if (tag === 'ol') {
+  let i = 1;
+  node.querySelectorAll('li').forEach(li => {
+    output += `${i}. ${htmlToMarkdown(li)}\n\n`;
+    i++;
+  });
+}
+
+
       else output += htmlToMarkdown(node);
     }
   }
@@ -955,6 +1067,7 @@ function resetEditor() {
   toolbar.style.display = 'none';
 }
 
+// --- Global Keyboard Shortcuts ---
 window.addEventListener('keydown', async (e) => {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const modifier = isMac ? e.metaKey : e.ctrlKey;
@@ -988,26 +1101,141 @@ window.addEventListener('keydown', async (e) => {
   if (modifier && e.key.toLowerCase() === 'e') {
     e.preventDefault();
     if (!selectedWeekHandle) return;
-    
     btnSave.click();
   }
 });
 
+// --- System Theme Synchronization ---
 function applySystemTheme(e) {
   const isDark = e.matches;
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  if (themeModeSelect.value === 'system') {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }
 }
 
 const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 applySystemTheme(colorSchemeQuery);
 colorSchemeQuery.addEventListener('change', applySystemTheme);
 
-const btnAbout = document.getElementById('btn-about');
-const aboutModal = document.getElementById('about-modal');
-const modalClose = document.getElementById('modal-close');
-const btnCopyEmail = document.getElementById('btn-copy-email');
-const devEmail = document.getElementById('dev-email').textContent;
+// --- Settings Modal Logic ---
+btnSettings.addEventListener('click', () => {
+  settingsModal.classList.add('active');
+});
 
+settingsClose.addEventListener('click', () => {
+  settingsModal.classList.remove('active');
+});
+
+settingsCancel.addEventListener('click', () => {
+  settingsModal.classList.remove('active');
+});
+
+settingsLineSpacing.addEventListener('change', (e) => {
+  if (e.target.value === 'custom') {
+    settingsLineSpacingCustom.style.display = 'block';
+  } else {
+    settingsLineSpacingCustom.style.display = 'none';
+  }
+});
+
+settingsLocalFonts.addEventListener('change', (e) => {
+  const enabled = e.target.checked;
+  settingsFontsMode.style.display = enabled ? 'block' : 'none';
+  settingsFontsChoose.style.display = enabled && settingsFontsSelectMode.value === 'choose' ? 'block' : 'none';
+});
+
+settingsFontsSelectMode.addEventListener('change', (e) => {
+  if (settingsLocalFonts.checked && e.target.value === 'choose') {
+    settingsFontsChoose.style.display = 'block';
+  } else {
+    settingsFontsChoose.style.display = 'none';
+  }
+});
+
+settingsApply.addEventListener('click', () => {
+  const mode = themeModeSelect.value;
+  if (mode === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else if (mode === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    applySystemTheme(colorSchemeQuery);
+  }
+
+  let spacingValue = settingsLineSpacing.value;
+  if (spacingValue === 'custom') {
+    const customVal = parseFloat(settingsLineSpacingCustom.value);
+    if (!isNaN(customVal) && customVal > 0) {
+      spacingValue = customVal.toString();
+    } else {
+      spacingValue = '1.6';
+    }
+  }
+  pageBody.style.lineHeight = spacingValue;
+
+  if (settingsLocalFonts.checked) {
+    const fontSelect = document.getElementById('font-family');
+    if (settingsFontsSelectMode.value === 'all') {
+      ['Segoe UI', 'Tahoma', 'Verdana', 'Helvetica', 'Lucida Console'].forEach(font => {
+        if (![...fontSelect.options].some(o => o.value === font)) {
+          const opt = document.createElement('option');
+          opt.value = font;
+          opt.textContent = font;
+          fontSelect.appendChild(opt);
+        }
+      });
+    } else {
+      const selectedFonts = Array.from(settingsFontsMulti.selectedOptions).map(o => o.value);
+      selectedFonts.forEach(font => {
+        if (![...fontSelect.options].some(o => o.value === font)) {
+          const opt = document.createElement('option');
+          opt.value = font;
+          opt.textContent = font;
+          fontSelect.appendChild(opt);
+        }
+      });
+    }
+  }
+
+  const uiTheme = settingsUiTheme.value;
+  document.body.classList.remove('theme-ant', 'theme-material', 'theme-chakra', 'theme-shadcn');
+  if (uiTheme === 'ant') document.body.classList.add('theme-ant');
+  if (uiTheme === 'material') document.body.classList.add('theme-material');
+  if (uiTheme === 'chakra') document.body.classList.add('theme-chakra');
+  if (uiTheme === 'shadcn') document.body.classList.add('theme-shadcn');
+
+  const sidebarPos = settingsSidebarPosition.value;
+  appContainer.classList.remove('layout-left', 'layout-right', 'layout-bottom');
+  if (sidebarPos === 'left') appContainer.classList.add('layout-left');
+  if (sidebarPos === 'right') appContainer.classList.add('layout-right');
+if (sidebarPos === 'bottom') {
+  appContainer.classList.add('layout-bottom');
+  document.querySelector('.pane-sidebar').classList.add('layout-bottom');
+  document.querySelector('.pane-pages').classList.add('layout-bottom');
+} else {
+  document.querySelector('.pane-sidebar').classList.remove('layout-bottom');
+  document.querySelector('.pane-pages').classList.remove('layout-bottom');
+}
+
+
+  settingsModal.classList.remove('active');
+});
+
+// Line spacing quick selector in toolbar
+lineSpacingSelect.addEventListener('change', (e) => {
+  let val = e.target.value;
+  if (val === 'custom') {
+    const custom = prompt("Enter custom line spacing (e.g. 1.2):", "1.6");
+    const num = parseFloat(custom);
+    if (!isNaN(num) && num > 0) {
+      pageBody.style.lineHeight = num.toString();
+    }
+  } else {
+    pageBody.style.lineHeight = val;
+  }
+});
+
+// --- About Modal Logic ---
 btnAbout.addEventListener('click', () => {
   aboutModal.classList.add('active');
 });
@@ -1033,3 +1261,48 @@ btnCopyEmail.addEventListener('click', async () => {
     console.error('Failed to copy email address: ', err);
   }
 });
+
+document.getElementById('btn-save-file').addEventListener('click', async () => {
+  if (!selectedWeekHandle) return;
+  await saveCurrentWeekToFile();
+
+  const activeWeek = listWeeks.querySelector('li.active');
+  if (activeWeek) {
+    const originalText = activeWeek.querySelector('span').textContent;
+    activeWeek.querySelector('span').textContent = 'Saved!';
+    setTimeout(() => {
+      activeWeek.querySelector('span').textContent = originalText;
+    }, 1000);
+  }
+});
+
+
+
+
+function normalizeEditorLists() {
+  pageBody.querySelectorAll("ul, ol").forEach(list => {
+    list.style.marginLeft = "32px";
+    list.style.paddingLeft = "16px";
+    list.style.lineHeight = "1.5";
+  });
+
+  pageBody.querySelectorAll("ul ul, ol ol, ul ol, ol ul").forEach(list => {
+    list.style.marginLeft = "48px";
+    list.style.paddingLeft = "16px";
+  });
+
+  pageBody.querySelectorAll("li").forEach(li => {
+    li.style.marginBottom = "6px";
+  });
+}
+
+
+function insertBulletList() {
+  document.execCommand("insertUnorderedList");
+  normalizeEditorLists();
+}
+
+function insertNumberList() {
+  document.execCommand("insertOrderedList");
+  normalizeEditorLists();
+}
