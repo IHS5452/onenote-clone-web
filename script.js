@@ -6,11 +6,15 @@ let selectedWeekHandle = null;
 let recentsMap = new Map();
 let autoSaveTimer = null;
 
+// --- DOM Elements ---
 const btnOpenFolder = document.getElementById('btn-open-folder');
 const btnAddSubject = document.getElementById('btn-add-subject');
 const btnAddWeek = document.getElementById('btn-add-week');
 const selectRecents = document.getElementById('select-recents');
 const btnSave = document.getElementById('btn-save');
+
+const btnImportMd = document.getElementById('btn-import-md');
+const inputImportMd = document.getElementById('input-import-md');
 
 const listSubjects = document.getElementById('list-subjects');
 const listWeeks = document.getElementById('list-weeks');
@@ -26,18 +30,50 @@ function alphaNumericCompare(a, b) {
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-// --- Handle Paste for Images ---
-// --- Enhanced Handle Paste for MD, HTML, DOCX, and Images ---
+// --- Helper: Insert HTML into Document Selection Caret ---
+function insertHtmlAtCaret(html) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+
+  const frag = document.createDocumentFragment();
+  let node, lastNode;
+  while ((node = tempDiv.firstChild)) {
+    lastNode = frag.appendChild(node);
+  }
+
+  range.insertNode(frag);
+
+  if (lastNode) {
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+}
+
+// --- Helper: Check if Raw Text is Markdown ---
+function isMarkdownText(text) {
+  const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
+  return mdRegex.test(text);
+}
+
+// --- Auto-Formatting Paste Handler (Images, DOCX, HTML, MD) ---
 async function handlePaste(e) {
   const clipboardData = e.clipboardData || window.clipboardData;
   if (!clipboardData) return;
 
-  // 1. Handle File Pastes (DOCX files or standard images)
+  // 1. Process File Pastes (Images & DOCX files)
   const items = clipboardData.items;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    
-    // Handle Image Files
+
+    // Image Paste
     if (item.type.indexOf('image') !== -1) {
       e.preventDefault();
       const file = item.getAsFile();
@@ -51,20 +87,20 @@ async function handlePaste(e) {
       return;
     }
 
-    // Handle DOCX File Pastes via Mammoth
+    // DOCX File Paste via Mammoth
     if (item.kind === 'file' && (item.type.includes('wordprocessingml') || item.type.includes('docx'))) {
       e.preventDefault();
       const file = item.getAsFile();
       const arrayBuffer = await file.arrayBuffer();
-      
+
       const options = {
-        convertImage: mammoth.images.imgElement(function(image) {
-          return image.read("base64").then(function(imageBuffer) {
+        convertImage: mammoth.images.imgElement(function (image) {
+          return image.read("base64").then(function (imageBuffer) {
             return { src: "data:" + image.contentType + ";base64," + imageBuffer };
           });
         })
       };
-      
+
       const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, options);
       if (result.value) {
         insertHtmlAtCaret(result.value);
@@ -74,20 +110,19 @@ async function handlePaste(e) {
     }
   }
 
-  // 2. Handle Text Formats (HTML & Markdown)
+  // 2. Process Text Formats (HTML & Markdown)
   const htmlText = clipboardData.getData('text/html');
   const plainText = clipboardData.getData('text/plain');
 
-  // Case A: Standard Rich HTML Pastes
+  // HTML Content Paste
   if (htmlText && htmlText.trim()) {
     e.preventDefault();
-    // Clean and insert sanitized HTML
     insertHtmlAtCaret(htmlText);
     saveCurrentWeekToFile();
     return;
   }
 
-  // Case B: Markdown Pastes (Detected via basic syntax matching)
+  // Markdown Content Paste
   if (plainText && isMarkdownText(plainText)) {
     e.preventDefault();
     if (window.marked) {
@@ -99,37 +134,87 @@ async function handlePaste(e) {
   }
 }
 
-// --- Helper: Check if raw text looks like Markdown ---
-function isMarkdownText(text) {
-  const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
-  return mdRegex.test(text);
-}
+// --- Bulk Markdown Import Logic ---
+btnImportMd.addEventListener('click', () => {
+  if (!rootHandle) {
+    return alert("Please open or select a root subject folder first.");
+  }
+  inputImportMd.value = '';
+  inputImportMd.click();
+});
 
-// --- Helper: Insert HTML into Document Selection Caret ---
-function insertHtmlAtCaret(html) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return;
-  
-  const range = selection.getRangeAt(0);
-  range.deleteContents();
+inputImportMd.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
 
+  try {
+    // Prompt for target Subject directory
+    const subjectName = prompt("Enter the Subject name to import these files into:");
+    if (!subjectName || !subjectName.trim()) return;
+
+    const cleanSubjectName = subjectName.trim();
+
+    const hasPermission = await verifyPermission(rootHandle, true);
+    if (!hasPermission) return alert("Write permission was denied.");
+
+    const targetSubjectHandle = await rootHandle.getDirectoryHandle(cleanSubjectName, { create: true });
+
+    // Process files sequentially
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const originalNameWithoutExt = file.name.replace(/\.md$/i, '');
+
+      const promptMsg = `File [${i + 1}/${files.length}]: "${file.name}"\nEnter a new Week name (or leave blank to keep "${originalNameWithoutExt}"):`;
+      const customName = prompt(promptMsg, originalNameWithoutExt);
+
+      const finalDisplayName = (customName && customName.trim()) ? customName.trim() : originalNameWithoutExt;
+      const targetFileName = `${finalDisplayName}.docx`;
+
+      const mdContent = await file.text();
+
+      let htmlContent = '';
+      if (window.marked) {
+        htmlContent = window.marked.parse(mdContent);
+      } else {
+        htmlContent = `<p>${mdContent.replace(/\n/g, '<br>')}</p>`;
+      }
+
+      const docxBlob = await generateDocxBlobFromHtml(htmlContent);
+
+      const newFileHandle = await targetSubjectHandle.getFileHandle(targetFileName, { create: true });
+      const writable = await newFileHandle.createWritable();
+      await writable.write(docxBlob);
+      await writable.close();
+    }
+
+    // Refresh UI & Auto-Save
+    await loadSubjects();
+
+    const subjectItems = Array.from(listSubjects.querySelectorAll('li'));
+    const matchedLi = subjectItems.find(li => li.handle && li.handle.name === cleanSubjectName);
+    if (matchedLi) {
+      await selectSubject(matchedLi.handle, matchedLi);
+    }
+
+    alert(`Successfully imported ${files.length} Markdown file(s) into "${cleanSubjectName}".`);
+
+  } catch (err) {
+    console.error("Bulk MD Import Error:", err);
+    alert(`Failed to import files: ${err.message}`);
+  }
+});
+
+async function generateDocxBlobFromHtml(htmlString) {
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  const frag = document.createDocumentFragment();
-  let node, lastNode;
-  while ((node = tempDiv.firstChild)) {
-    lastNode = frag.appendChild(node);
-  }
-  
-  range.insertNode(frag);
+  tempDiv.innerHTML = htmlString;
 
-  if (lastNode) {
-    range.setStartAfter(lastNode);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
+  const originalHtml = pageBody.innerHTML;
+  pageBody.innerHTML = tempDiv.innerHTML;
+
+  const blob = await generateDocxBlob();
+
+  pageBody.innerHTML = originalHtml;
+  return blob;
 }
 
 // --- IndexedDB for Persisting Handles ---
@@ -399,7 +484,6 @@ async function loadSubjects() {
     }
   }
 
-  // Sort subjects alphanumerically
   entries.sort(alphaNumericCompare);
 
   entries.forEach(entry => {
@@ -461,7 +545,6 @@ async function selectSubject(handle, element) {
     }
   }
 
-  // Sort weeks alphanumerically
   entries.sort(alphaNumericCompare);
 
   entries.forEach(entry => {
@@ -561,10 +644,8 @@ async function renameSelectedSubject() {
   try {
     await saveCurrentWeekToFile();
 
-    // 1. Create new directory
     const newDirHandle = await rootHandle.getDirectoryHandle(cleanName, { create: true });
 
-    // 2. Move contents to new directory
     for await (const entry of selectedSubjectHandle.values()) {
       if (entry.kind === 'file') {
         const oldFile = await entry.getFile();
@@ -575,13 +656,9 @@ async function renameSelectedSubject() {
       }
     }
 
-    // 3. Remove old directory
     await rootHandle.removeEntry(oldName, { recursive: true });
-
-    // 4. Reload UI
     await loadSubjects();
 
-    // Re-select renamed subject
     const subjectItems = Array.from(listSubjects.querySelectorAll('li'));
     const matchedLi = subjectItems.find(li => li.handle && li.handle.name === cleanName);
     if (matchedLi) {
@@ -612,19 +689,15 @@ async function renameSelectedWeek() {
     const currentFile = await selectedWeekHandle.getFile();
     const newFileHandle = await selectedSubjectHandle.getFileHandle(newFileName, { create: true });
     
-    // Write contents to new file name
     const writable = await newFileHandle.createWritable();
     await writable.write(await currentFile.arrayBuffer());
     await writable.close();
 
-    // Delete old file
     await selectedSubjectHandle.removeEntry(oldFileName);
 
-    // Re-render weeks in alphabetical order
     const activeSubjectLi = listSubjects.querySelector('li.active');
     await selectSubject(selectedSubjectHandle, activeSubjectLi);
 
-    // Re-select and load the renamed week
     const weekItems = Array.from(listWeeks.querySelectorAll('li'));
     const matchedLi = weekItems.find(li => li.handle && li.handle.name === newFileName);
     if (matchedLi) {
@@ -838,19 +911,16 @@ window.addEventListener('keydown', async (e) => {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const modifier = isMac ? e.metaKey : e.ctrlKey;
 
-  // Shortcut Cmd/Ctrl + 1: Rename Selected Subject
   if (modifier && e.key === '1') {
     e.preventDefault();
     await renameSelectedSubject();
   }
 
-  // Shortcut Cmd/Ctrl + 2: Rename Selected Week
   if (modifier && e.key === '2') {
     e.preventDefault();
     await renameSelectedWeek();
   }
 
-  // Shortcut Cmd/Ctrl + S: Save Current File
   if (modifier && e.key.toLowerCase() === 's') {
     e.preventDefault();
     if (!selectedWeekHandle) return;
@@ -867,7 +937,6 @@ window.addEventListener('keydown', async (e) => {
     }
   }
 
-  // Shortcut Cmd/Ctrl + E: Export File
   if (modifier && e.key.toLowerCase() === 'e') {
     e.preventDefault();
     if (!selectedWeekHandle) return;
@@ -886,37 +955,35 @@ const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 applySystemTheme(colorSchemeQuery);
 colorSchemeQuery.addEventListener('change', applySystemTheme);
 
-
-
+// --- About Modal Actions ---
 const btnAbout = document.getElementById('btn-about');
-    const aboutModal = document.getElementById('about-modal');
-    const modalClose = document.getElementById('modal-close');
-    const btnCopyEmail = document.getElementById('btn-copy-email');
-    const devEmail = document.getElementById('dev-email').textContent;
+const aboutModal = document.getElementById('about-modal');
+const modalClose = document.getElementById('modal-close');
+const btnCopyEmail = document.getElementById('btn-copy-email');
+const devEmail = document.getElementById('dev-email').textContent;
 
-    btnAbout.addEventListener('click', () => {
-      aboutModal.classList.add('active');
-    });
+btnAbout.addEventListener('click', () => {
+  aboutModal.classList.add('active');
+});
 
-    modalClose.addEventListener('click', () => {
-      aboutModal.classList.remove('active');
-    });
+modalClose.addEventListener('click', () => {
+  aboutModal.classList.remove('active');
+});
 
-    aboutModal.addEventListener('click', (e) => {
-      if (e.target === aboutModal) {
-        aboutModal.classList.remove('active');
-      }
-    });
+aboutModal.addEventListener('click', (e) => {
+  if (e.target === aboutModal) {
+    aboutModal.classList.remove('active');
+  }
+});
 
-    // Copy Email to Clipboard Action
-    btnCopyEmail.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(devEmail);
-        btnCopyEmail.textContent = 'Copied!';
-        setTimeout(() => {
-          btnCopyEmail.textContent = 'Copy';
-        }, 2000);
-      } catch (err) {
-        console.error('Failed to copy email address: ', err);
-      }
-    });
+btnCopyEmail.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(devEmail);
+    btnCopyEmail.textContent = 'Copied!';
+    setTimeout(() => {
+      btnCopyEmail.textContent = 'Copy';
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy email address: ', err);
+  }
+});
