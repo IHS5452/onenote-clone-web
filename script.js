@@ -1,3 +1,5 @@
+
+
 let rootHandle = null;
 let selectedSubjectHandle = null;
 let selectedWeekHandle = null;
@@ -73,7 +75,8 @@ async function verifyPermission(fileHandle, readWrite = true) {
 }
 
 // --- Root Directory Loading ---
-btnOpenFolder.addEventListener('click', async () => {
+btnOpenFolder.addEventListener('click', async (e) => {
+  e.preventDefault();
   try {
     rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
     await saveHandleToDB(rootHandle.name, rootHandle);
@@ -131,6 +134,7 @@ function addSubjectUIElement(entryHandle) {
   delBtn.innerHTML = '✕';
   delBtn.title = 'Delete Subject';
   delBtn.onclick = async (e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete "${entryHandle.name}" and all its contents?`)) {
       try {
@@ -148,7 +152,10 @@ function addSubjectUIElement(entryHandle) {
   };
   li.appendChild(delBtn);
 
-  li.onclick = () => selectSubject(entryHandle, li);
+  li.onclick = (e) => {
+    e.preventDefault();
+    selectSubject(entryHandle, li);
+  };
   listSubjects.appendChild(li);
   return li;
 }
@@ -179,6 +186,7 @@ function addWeekUIElement(fileHandle) {
   delBtn.innerHTML = '✕';
   delBtn.title = 'Delete Week';
   delBtn.onclick = async (e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete "${fileHandle.name}"?`)) {
       try {
@@ -195,7 +203,10 @@ function addWeekUIElement(fileHandle) {
   };
   li.appendChild(delBtn);
 
-  li.onclick = () => loadWeek(fileHandle, li);
+  li.onclick = (e) => {
+    e.preventDefault();
+    loadWeek(fileHandle, li);
+  };
   listWeeks.appendChild(li);
   return li;
 }
@@ -221,7 +232,8 @@ async function loadWeek(fileHandle, element) {
 }
 
 // --- Dynamic Creation Handlers ---
-btnAddSubject.addEventListener('click', async () => {
+btnAddSubject.addEventListener('click', async (e) => {
+  e.preventDefault();
   if (!rootHandle) return alert("Please open or select a root folder first.");
 
   try {
@@ -242,7 +254,8 @@ btnAddSubject.addEventListener('click', async () => {
   }
 });
 
-btnAddWeek.addEventListener('click', async () => {
+btnAddWeek.addEventListener('click', async (e) => {
+  e.preventDefault();
   if (!selectedSubjectHandle) return alert("Please select a Subject first.");
 
   try {
@@ -293,7 +306,8 @@ function insertImage() {
 }
 
 // --- Export Handlers ---
-btnSave.addEventListener('click', async () => {
+btnSave.addEventListener('click', async (e) => {
+  e.preventDefault();
   if (!selectedWeekHandle) return;
 
   const format = document.getElementById('export-format').value;
