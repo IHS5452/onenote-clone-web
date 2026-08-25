@@ -148,8 +148,8 @@ inputImportMd.addEventListener('change', async (e) => {
   if (!files.length) return;
 
   try {
-    // Prompt for target Subject directory
-    const subjectName = prompt("Enter the Subject name to import these files into:");
+    // Read the subject name passed from your custom UI modal
+    const subjectName = e.target.dataset.targetSubject;
     if (!subjectName || !subjectName.trim()) return;
 
     const cleanSubjectName = subjectName.trim();
@@ -159,16 +159,11 @@ inputImportMd.addEventListener('change', async (e) => {
 
     const targetSubjectHandle = await rootHandle.getDirectoryHandle(cleanSubjectName, { create: true });
 
-    // Process files sequentially
+    // Process files sequentially using original filenames
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const originalNameWithoutExt = file.name.replace(/\.md$/i, '');
-
-      const promptMsg = `File [${i + 1}/${files.length}]: "${file.name}"\nEnter a new Week name (or leave blank to keep "${originalNameWithoutExt}"):`;
-      const customName = prompt(promptMsg, originalNameWithoutExt);
-
-      const finalDisplayName = (customName && customName.trim()) ? customName.trim() : originalNameWithoutExt;
-      const targetFileName = `${finalDisplayName}.docx`;
+      const targetFileName = `${originalNameWithoutExt}.docx`;
 
       const mdContent = await file.text();
 
@@ -201,6 +196,10 @@ inputImportMd.addEventListener('change', async (e) => {
   } catch (err) {
     console.error("Bulk MD Import Error:", err);
     alert(`Failed to import files: ${err.message}`);
+  } finally {
+    // Reset inputs and cleanup dataset attribute
+    e.target.value = '';
+    delete e.target.dataset.targetSubject;
   }
 });
 
@@ -987,3 +986,82 @@ btnCopyEmail.addEventListener('click', async () => {
     console.error('Failed to copy email address: ', err);
   }
 });
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnImportMd = document.getElementById('btn-import-md');
+      const inputImportMd = document.getElementById('input-import-md');
+      
+      const importModal = document.getElementById('import-md-modal');
+      const importClose = document.getElementById('import-modal-close');
+      const activeStep = document.getElementById('import-active-step');
+      const activeSubjectNameSpan = document.getElementById('import-active-subject-name');
+      const btnUseActive = document.getElementById('btn-import-use-active');
+      const btnSwitchNew = document.getElementById('btn-import-switch-new');
+      
+      const inputStep = document.getElementById('import-input-step');
+      const inputNewSubjectName = document.getElementById('input-new-subject-name');
+      const errorMsg = document.getElementById('import-error-msg');
+      const btnConfirm = document.getElementById('btn-import-confirm');
+      const btnCancel = document.getElementById('btn-import-cancel');
+
+      function closeModal() {
+        importModal.classList.remove('active');
+        inputNewSubjectName.value = '';
+        errorMsg.style.display = 'none';
+      }
+
+      function triggerFilePicker(subjectName) {
+        inputImportMd.dataset.targetSubject = subjectName;
+        closeModal();
+        inputImportMd.click();
+      }
+
+      if (btnImportMd && importModal) {
+        btnImportMd.addEventListener('click', () => {
+          errorMsg.style.display = 'none';
+          const activeSubjectItem = document.querySelector('#list-subjects li.active');
+          
+          if (activeSubjectItem) {
+            const subjectName = activeSubjectItem.childNodes[0]?.textContent?.trim() || activeSubjectItem.textContent.trim();
+            activeSubjectNameSpan.textContent = subjectName;
+            activeStep.style.display = 'flex';
+            inputStep.style.display = 'none';
+          } else {
+            activeStep.style.display = 'none';
+            inputStep.style.display = 'flex';
+            setTimeout(() => inputNewSubjectName.focus(), 50);
+          }
+
+          importModal.classList.add('active');
+        });
+
+        importClose.addEventListener('click', closeModal);
+        btnCancel.addEventListener('click', closeModal);
+
+        btnUseActive.addEventListener('click', () => {
+          triggerFilePicker(activeSubjectNameSpan.textContent);
+        });
+
+        btnSwitchNew.addEventListener('click', () => {
+          activeStep.style.display = 'none';
+          inputStep.style.display = 'flex';
+          inputNewSubjectName.focus();
+        });
+
+        btnConfirm.addEventListener('click', () => {
+          const name = inputNewSubjectName.value.trim();
+          if (!name) {
+            errorMsg.style.display = 'block';
+            return;
+          }
+          triggerFilePicker(name);
+        });
+
+        inputNewSubjectName.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            btnConfirm.click();
+          }
+        });
+      }
+    });
