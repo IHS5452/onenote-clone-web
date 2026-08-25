@@ -7,8 +7,13 @@
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- Replaced html-docx-js with real OpenXML generator docx.js -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 
   <style>
     :root {
@@ -93,6 +98,7 @@
 
   <div class="titlebar">
     <div class="brand">
+      <span class="brand-icon"></span>
       <span>OneNote Web Clone by Ian Schrauth</span>
     </div>
     <div class="top-actions">
