@@ -239,7 +239,7 @@
       background-color: var(--bg-modal);
       border: 1px solid var(--border-color);
       border-radius: 8px;
-      width: 380px;
+      width: 400px;
       padding: 24px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       display: flex;
@@ -294,10 +294,10 @@
       text-decoration: underline;
     }
 
-    /* Modal Inputs & Actions */
+    /* Modal Controls */
     .modal-input {
       width: 100%;
-      padding: 8px;
+      padding: 8px 10px;
       background: var(--bg-sidebar);
       border: 1px solid var(--border-color);
       color: var(--text-bright);
@@ -305,11 +305,19 @@
       outline: none;
       font-size: 13px;
     }
+    .modal-input:focus {
+      border-color: var(--accent-color);
+    }
     .modal-footer {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
       margin-top: 8px;
+    }
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 11px;
+      display: none;
     }
   </style>
 </head>
@@ -434,7 +442,7 @@
     </div>
   </div>
 
-  <!-- Import MD Modal -->
+  <!-- Interactive Import Modal (Zero Browser Alerts) -->
   <div class="modal-overlay" id="import-md-modal">
     <div class="modal">
       <div class="modal-header">
@@ -442,46 +450,56 @@
         <button type="button" class="modal-close" id="import-modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="import-active-subject-option" style="display:none; flex-direction: column; gap: 10px;">
-          <p>Import into active subject (<strong id="import-active-subject-name" style="color:var(--text-bright);"></strong>)?</p>
+        
+        <!-- Selection step (Shown when a subject is active) -->
+        <div id="import-active-step" style="display:none; flex-direction: column; gap: 12px;">
+          <p>Import into current subject (<strong id="import-active-subject-name" style="color:var(--text-bright);"></strong>)?</p>
           <div style="display: flex; gap: 8px;">
-            <button type="button" class="btn" id="btn-import-use-active">Use Current Subject</button>
-            <button type="button" class="btn btn-secondary" id="btn-import-switch-new">Create New Subject</button>
+            <button type="button" class="btn" id="btn-import-use-active" style="flex:1;">Yes, Use Selected</button>
+            <button type="button" class="btn btn-secondary" id="btn-import-switch-new" style="flex:1;">No, Create New</button>
           </div>
         </div>
-        <div id="import-new-subject-container" style="display:none; flex-direction: column; gap: 8px;">
+
+        <!-- Input step (Shown when creating new subject or when no subject is active) -->
+        <div id="import-input-step" style="display:none; flex-direction: column; gap: 8px;">
           <label class="modal-label" for="input-new-subject-name">Subject Name:</label>
-          <input type="text" class="modal-input" id="input-new-subject-name" placeholder="e.g. Computer Science" />
+          <input type="text" class="modal-input" id="input-new-subject-name" placeholder="Enter subject name..." />
+          <span class="error-msg" id="import-error-msg">Subject name cannot be empty.</span>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" id="btn-import-cancel">Cancel</button>
-            <button type="button" class="btn" id="btn-import-confirm-new">Continue & Import</button>
+            <button type="button" class="btn" id="btn-import-confirm">Continue to Files</button>
           </div>
         </div>
+
       </div>
     </div>
   </div>
 
   <script src="script.js"></script>
 
-  <!-- Import Modal Script -->
+  <!-- Fully Interactive Import Logic -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const btnImportMd = document.getElementById('btn-import-md');
       const inputImportMd = document.getElementById('input-import-md');
+      
       const importModal = document.getElementById('import-md-modal');
       const importClose = document.getElementById('import-modal-close');
-      const activeOptionDiv = document.getElementById('import-active-subject-option');
+      const activeStep = document.getElementById('import-active-step');
       const activeSubjectNameSpan = document.getElementById('import-active-subject-name');
       const btnUseActive = document.getElementById('btn-import-use-active');
       const btnSwitchNew = document.getElementById('btn-import-switch-new');
-      const newSubjectContainer = document.getElementById('import-new-subject-container');
+      
+      const inputStep = document.getElementById('import-input-step');
       const inputNewSubjectName = document.getElementById('input-new-subject-name');
-      const btnConfirmNew = document.getElementById('btn-import-confirm-new');
+      const errorMsg = document.getElementById('import-error-msg');
+      const btnConfirm = document.getElementById('btn-import-confirm');
       const btnCancel = document.getElementById('btn-import-cancel');
 
       function closeModal() {
         importModal.classList.remove('active');
         inputNewSubjectName.value = '';
+        errorMsg.style.display = 'none';
       }
 
       function triggerFilePicker(subjectName) {
@@ -492,16 +510,18 @@
 
       if (btnImportMd && importModal) {
         btnImportMd.addEventListener('click', () => {
+          errorMsg.style.display = 'none';
           const activeSubjectItem = document.querySelector('#list-subjects li.active');
           
           if (activeSubjectItem) {
             const subjectName = activeSubjectItem.childNodes[0]?.textContent?.trim() || activeSubjectItem.textContent.trim();
             activeSubjectNameSpan.textContent = subjectName;
-            activeOptionDiv.style.display = 'flex';
-            newSubjectContainer.style.display = 'none';
+            activeStep.style.display = 'flex';
+            inputStep.style.display = 'none';
           } else {
-            activeOptionDiv.style.display = 'none';
-            newSubjectContainer.style.display = 'flex';
+            activeStep.style.display = 'none';
+            inputStep.style.display = 'flex';
+            setTimeout(() => inputNewSubjectName.focus(), 50);
           }
 
           importModal.classList.add('active');
@@ -511,20 +531,27 @@
         btnCancel.addEventListener('click', closeModal);
 
         btnUseActive.addEventListener('click', () => {
-          const subjectName = activeSubjectNameSpan.textContent;
-          triggerFilePicker(subjectName);
+          triggerFilePicker(activeSubjectNameSpan.textContent);
         });
 
         btnSwitchNew.addEventListener('click', () => {
-          activeOptionDiv.style.display = 'none';
-          newSubjectContainer.style.display = 'flex';
+          activeStep.style.display = 'none';
+          inputStep.style.display = 'flex';
           inputNewSubjectName.focus();
         });
 
-        btnConfirmNew.addEventListener('click', () => {
-          const newName = inputNewSubjectName.value.trim();
-          if (newName) {
-            triggerFilePicker(newName);
+        btnConfirm.addEventListener('click', () => {
+          const name = inputNewSubjectName.value.trim();
+          if (!name) {
+            errorMsg.style.display = 'block';
+            return;
+          }
+          triggerFilePicker(name);
+        });
+
+        inputNewSubjectName.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            btnConfirm.click();
           }
         });
       }
