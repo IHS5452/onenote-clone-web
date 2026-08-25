@@ -1,4 +1,9 @@
-const docx = window.docx;
+// Safe resolver helper for docx module exports
+function getDocxLib() {
+  if (window.docx && window.docx.Document) return window.docx;
+  if (typeof docx !== 'undefined' && docx.Document) return docx;
+  return null;
+}
 
 let rootHandle = null;
 let selectedSubjectHandle = null;
@@ -16,7 +21,6 @@ const btnSave = document.getElementById('btn-save');
 const btnImportMd = document.getElementById('btn-import-md');
 const inputImportMd = document.getElementById('input-import-md');
 
-// Custom Import Modal Elements
 const importModal = document.getElementById('import-modal');
 const btnImportUseCurrent = document.getElementById('btn-import-use-current');
 const btnImportUseNew = document.getElementById('btn-import-use-new');
@@ -32,15 +36,12 @@ const pageTitle = document.getElementById('page-title');
 const pageDatetime = document.getElementById('page-datetime');
 const pageBody = document.getElementById('page-body');
 
-// Attach paste listener to editor
 pageBody.addEventListener('paste', handlePaste);
 
-// --- Natural Alphanumeric Sorting Helper ---
 function alphaNumericCompare(a, b) {
   return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 }
 
-// --- Helper: Insert HTML into Document Selection Caret ---
 function insertHtmlAtCaret(html) {
   const selection = window.getSelection();
   if (!selection.rangeCount) return;
@@ -67,23 +68,19 @@ function insertHtmlAtCaret(html) {
   }
 }
 
-// --- Helper: Check if Raw Text is Markdown ---
 function isMarkdownText(text) {
   const mdRegex = /(^#{1,6}\s+|^\s*[\*\-\+]\s+|^\s*\d+\.\s+|\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\)|`{1,3}.*?`{1,3})/m;
   return mdRegex.test(text);
 }
 
-// --- Auto-Formatting Paste Handler (Images, DOCX, HTML, MD) ---
 async function handlePaste(e) {
   const clipboardData = e.clipboardData || window.clipboardData;
   if (!clipboardData) return;
 
-  // 1. Process File Pastes (Images & DOCX files)
   const items = clipboardData.items;
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
-    // Image Paste
     if (item.type.indexOf('image') !== -1) {
       e.preventDefault();
       const file = item.getAsFile();
@@ -97,7 +94,6 @@ async function handlePaste(e) {
       return;
     }
 
-    // DOCX File Paste via Mammoth
     if (item.kind === 'file' && (item.type.includes('wordprocessingml') || item.type.includes('docx'))) {
       e.preventDefault();
       const file = item.getAsFile();
@@ -120,11 +116,9 @@ async function handlePaste(e) {
     }
   }
 
-  // 2. Process Text Formats (HTML & Markdown)
   const htmlText = clipboardData.getData('text/html');
   const plainText = clipboardData.getData('text/plain');
 
-  // HTML Content Paste
   if (htmlText && htmlText.trim()) {
     e.preventDefault();
     insertHtmlAtCaret(htmlText);
@@ -132,7 +126,6 @@ async function handlePaste(e) {
     return;
   }
 
-  // Markdown Content Paste
   if (plainText && isMarkdownText(plainText)) {
     e.preventDefault();
     if (window.marked) {
@@ -144,7 +137,6 @@ async function handlePaste(e) {
   }
 }
 
-// --- Modal & File Picker Sequence Fix ---
 function triggerFilePicker(targetSubjectName) {
   inputImportMd.value = '';
   inputImportMd.dataset.targetSubject = targetSubjectName;
@@ -198,7 +190,6 @@ if (btnImportCancel) {
   });
 }
 
-// --- Bulk Markdown Import & Formatting Logic ---
 inputImportMd.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files);
   if (!files.length) return;
@@ -268,7 +259,6 @@ async function generateDocxBlobFromHtml(htmlString) {
   return blob;
 }
 
-// --- IndexedDB for Persisting Handles ---
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('OneNoteWebDB', 1);
@@ -322,7 +312,6 @@ async function verifyPermission(fileHandle, readWrite = true) {
   return false;
 }
 
-// --- DOM Node Formatting Helper ---
 function isNodeFormatted(node, targetTag) {
   let current = node.parentElement;
   while (current && current.id !== 'page-body') {
@@ -332,7 +321,6 @@ function isNodeFormatted(node, targetTag) {
   return false;
 }
 
-// --- Convert Data URL / Base64 to Uint8Array ---
 function dataURLToUint8Array(dataURL) {
   const base64 = dataURL.split(',')[1];
   const binaryString = window.atob(base64);
@@ -344,10 +332,10 @@ function dataURLToUint8Array(dataURL) {
   return bytes;
 }
 
-// --- Recursive Parser for Elements ---
 function parseElementToDocxRuns(node) {
   const runs = [];
-  const docxLib = window.docx || docx;
+  const docxLib = getDocxLib();
+  if (!docxLib) throw new Error("docx library is not available.");
 
   node.childNodes.forEach(child => {
     if (child.nodeType === Node.TEXT_NODE) {
@@ -395,11 +383,11 @@ function parseElementToDocxRuns(node) {
   return runs;
 }
 
-// --- Build OpenXML Document ---
 async function generateDocxBlob() {
-  const docxLib = window.docx || docx;
-  const paragraphs = [];
+  const docxLib = getDocxLib();
+  if (!docxLib) throw new Error("docx library is not available.");
 
+  const paragraphs = [];
   const blockElements = Array.from(pageBody.childNodes);
   
   if (blockElements.length === 0) {
@@ -491,7 +479,6 @@ async function generateDocxBlob() {
   return await docxLib.Packer.toBlob(doc);
 }
 
-// --- Local Storage Binary Saver ---
 async function saveCurrentWeekToFile() {
   if (!selectedWeekHandle) return;
   try {
@@ -504,7 +491,6 @@ async function saveCurrentWeekToFile() {
   }
 }
 
-// --- Root Directory Loading ---
 btnOpenFolder.addEventListener('click', async (e) => {
   e.preventDefault();
   try {
@@ -535,11 +521,10 @@ selectRecents.addEventListener('change', async (e) => {
     await loadSubjects();
   } catch (err) {
     console.error("Failed to restore folder:", err);
-    alert("Could not access recent folder. Please open it using 'Open Subject Root Folder'.");
+    alert("Could not access recent folder. Please open it using 'Open Root Folder'.");
   }
 });
 
-// --- Subject List Management ---
 async function loadSubjects() {
   listSubjects.innerHTML = '';
   listWeeks.innerHTML = '';
@@ -622,7 +607,6 @@ async function selectSubject(handle, element) {
   });
 }
 
-// --- Week List Management ---
 function addWeekUIElement(fileHandle) {
   const li = document.createElement('li');
   li.handle = fileHandle;
@@ -699,7 +683,6 @@ async function loadWeek(fileHandle, element) {
   }
 }
 
-// --- Rename Operations ---
 async function renameSelectedSubject() {
   if (!selectedSubjectHandle || !rootHandle) {
     return alert("Please select a subject to rename.");
@@ -779,7 +762,6 @@ async function renameSelectedWeek() {
   }
 }
 
-// --- Auto-Save Event Controls ---
 pageBody.addEventListener('blur', saveCurrentWeekToFile);
 
 pageTitle.addEventListener('blur', async () => {
@@ -802,7 +784,6 @@ pageTitle.addEventListener('input', () => {
   autoSaveTimer = setTimeout(saveCurrentWeekToFile, 1000);
 });
 
-// --- Dynamic File Handlers ---
 btnAddSubject.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!rootHandle) return alert("Please open or select a root folder first.");
@@ -846,7 +827,8 @@ btnAddWeek.addEventListener('click', async (e) => {
     await saveCurrentWeekToFile();
 
     const fileName = `${weekName.trim()}.docx`;
-    const docxLib = window.docx || docx;
+    const docxLib = getDocxLib();
+    if (!docxLib) return alert("docx library is not available.");
     
     const doc = new docxLib.Document({
       sections: [{
@@ -877,7 +859,6 @@ btnAddWeek.addEventListener('click', async (e) => {
   }
 });
 
-// --- Formatting Actions ---
 function execCmd(command) { document.execCommand(command, false, null); }
 function execCmdArg(command, arg) { document.execCommand(command, false, arg); }
 
@@ -888,7 +869,7 @@ function insertLink() {
   const customText = prompt("Enter link text:", selectedText || url);
   
   if (customText && customText !== selectedText) {
-    const linkHtml = `<a href="${url}" target="_blank" style="color:#7719aa;">${customText}</a>`;
+    const linkHtml = `<a href="${url}" target="_blank" style="color:#1677ff;">${customText}</a>`;
     document.execCommand('insertHTML', false, linkHtml);
   } else {
     document.execCommand('createLink', false, url);
@@ -900,7 +881,6 @@ function insertImage() {
   if (url) document.execCommand('insertImage', false, url);
 }
 
-// --- Universal Download Helper ---
 function downloadFile(filename, content, mimeType) {
   const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
   const a = document.createElement('a');
@@ -910,7 +890,6 @@ function downloadFile(filename, content, mimeType) {
   URL.revokeObjectURL(a.href);
 }
 
-// --- Export & Save Action ---
 btnSave.addEventListener('click', async (e) => {
   e.preventDefault();
   if (!selectedWeekHandle) return;
@@ -976,7 +955,6 @@ function resetEditor() {
   toolbar.style.display = 'none';
 }
 
-// --- Global Keyboard Shortcuts ---
 window.addEventListener('keydown', async (e) => {
   const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
   const modifier = isMac ? e.metaKey : e.ctrlKey;
@@ -1015,7 +993,6 @@ window.addEventListener('keydown', async (e) => {
   }
 });
 
-// --- System Theme Synchronization ---
 function applySystemTheme(e) {
   const isDark = e.matches;
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -1025,7 +1002,6 @@ const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 applySystemTheme(colorSchemeQuery);
 colorSchemeQuery.addEventListener('change', applySystemTheme);
 
-// --- About Modal Actions ---
 const btnAbout = document.getElementById('btn-about');
 const aboutModal = document.getElementById('about-modal');
 const modalClose = document.getElementById('modal-close');
